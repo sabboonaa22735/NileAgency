@@ -204,7 +204,7 @@ export default function Chat() {
   };
 
   const filteredConversations = conversations.filter(c => 
-    c.user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (c.user?.email || c.user?.firstName || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -232,7 +232,7 @@ export default function Chat() {
                   )}
                 </div>
                 <div>
-                  <h2 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{getConversation()?.user.email}</h2>
+                  <h2 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{getConversation()?.user?.email || getConversation()?.user?.firstName || 'User'}</h2>
                   <p className="text-xs text-emerald-400">Online</p>
                 </div>
               </div>
@@ -303,7 +303,7 @@ export default function Chat() {
                       <FiUser className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{contact.email}</p>
+                      <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{contact.email || contact.firstName || 'User'}</p>
                       <p className={`text-xs capitalize ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{contact.role}</p>
                     </div>
                   </button>
@@ -321,10 +321,10 @@ export default function Chat() {
                 No conversations yet
               </div>
             ) : (
-              filteredConversations.map((conv) => (
+              filteredConversations.map((conv, index) => (
                 <Link
-                  key={conv.id}
-                  to={`/chat/${conv.id}`}
+                  key={conv.id || `conv-${index}`}
+                  to={`/chat/${conv.id || index}`}
                   className={`flex items-center gap-3 p-4 transition ${
                     partnerId === conv.id 
                       ? (isDark ? 'bg-brand-indigo/20' : 'bg-blue-50') 
@@ -333,7 +333,7 @@ export default function Chat() {
                 >
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-indigo to-brand-blue flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">{conv.user.avatar}</span>
+                      <span className="text-white text-sm font-medium">{conv.user?.avatar || conv.user?.email?.[0]?.toUpperCase() || 'U'}</span>
                     </div>
                     {conv.online && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-800" />
@@ -341,7 +341,7 @@ export default function Chat() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{conv.user.email}</p>
+                      <p className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{conv.user?.email || conv.user?.firstName || 'User'}</p>
                       <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{formatTime(conv.timestamp)}</span>
                     </div>
                     <p className={`text-sm truncate ${conv.unread > 0 ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-gray-500' : 'text-gray-500')}`}>

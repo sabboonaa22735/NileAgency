@@ -5,8 +5,9 @@ import {
   FiPlus, FiFilter, FiMoreVertical, FiClock, FiStar, FiDownload, FiUpload,
   FiSend, FiPaperclip, FiPhone, FiVideo, FiCalendar, FiMapPin, FiDollarSign, FiAward, FiTrendingUp,
   FiChevronLeft, FiChevronRight, FiChevronDown, FiArrowUp, FiArrowDown, FiLogOut, FiUser, FiEdit, FiShield, FiMenu,
-  FiX, FiFilter as FiFilterIcon
+  FiX, FiFilter as FiFilterIcon, FiRefreshCw
 } from 'react-icons/fi';
+import { jobsApi, applicationsApi, chatApi, usersApi, notificationsApi } from '../services/api';
 
 const RecruiterDashboard = () => {
   const [darkMode, setDarkMode] = useState(true);
@@ -16,17 +17,23 @@ const RecruiterDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [stats, setStats] = useState({ activeJobs: 0, totalApplicants: 0, hiresThisMonth: 0, responseRate: '0%' });
 
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-600';
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
-  const bgMain = darkMode ? 'bg-[#0B0F19]' : 'bg-slate-50';
-  const bgCard = darkMode ? 'bg-slate-800/50' : 'bg-white';
-  const bgSidebar = darkMode ? 'bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900' : 'bg-white';
-  const borderColor = darkMode ? 'border-slate-700/50' : 'border-slate-200';
+  const bgMain = darkMode ? 'bg-[#0F172A]' : 'bg-slate-50';
+  const bgCard = darkMode ? 'bg-slate-800' : 'bg-white';
+  const bgSidebar = darkMode ? 'bg-slate-900' : 'bg-white';
+  const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
   const borderSubtle = darkMode ? 'border-slate-800' : 'border-slate-100';
   
-  const glassEffect = darkMode ? 'backdrop-blur-xl bg-slate-800/60 border border-slate-700/50' : 'backdrop-blur-xl bg-white/80 border border-slate-200/50';
+  const glassEffect = darkMode ? 'backdrop-blur-xl bg-slate-800/95 border border-slate-700' : 'backdrop-blur-xl bg-white/95 border border-slate-200';
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -42,6 +49,113 @@ const RecruiterDashboard = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [mouseX, mouseY]);
 
+  useEffect(() => {
+    fetchDashboardData();
+    fetchNotifications();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      const [jobsRes, appsRes, convRes] = await Promise.all([
+        jobsApi.getAll({ limit: 20, myJobs: 'true' }),
+        applicationsApi.myApplications(),
+        chatApi.getConversations()
+      ]);
+      
+      console.log('=== Recruiter Dashboard Data ===');
+      console.log('Jobs:', jobsRes.data);
+      console.log('Applications:', appsRes.data);
+      console.log('Conversations:', convRes.data);
+      
+      const jobsData = jobsRes.data?.jobs || [];
+      const appsData = Array.isArray(appsRes.data) ? appsRes.data : [];
+      const convData = convRes.data ? (Array.isArray(convRes.data) ? convRes.data : Object.values(convRes.data)) : [];
+      
+      setJobs(jobsData);
+      setCandidates(appsData);
+      setMessages(convData);
+      setStats({
+        activeJobs: jobsData.filter(j => j.status === 'active').length,
+        totalApplicants: appsData.length,
+        hiresThisMonth: appsData.filter(a => a.status === 'accepted' && new Date(a.updatedAt).getMonth() === new Date().getMonth()).length,
+        responseRate: appsData.length > 0 ? `${Math.round((appsData.filter(a => a.status !== 'pending').length / appsData.length) * 100)}%` : '0%'
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await notificationsApi.getAll();
+      const data = Array.isArray(res.data) ? res.data : (res.data.notifications || []);
+      setNotifications(data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchDashboardData();
+    fetchNotifications();
+  };
+
+  const kpiCards = [
+    { label: 'Active Jobs', value: stats.activeJobs || 0, change: '+3', trend: 'up', icon: FiBriefcase, color: 'from-blue-500 to-cyan-400' },
+    { label: 'Total Applicants', value: stats.totalApplicants || 0, change: '+18%', trend: 'up', icon: FiUsers, color: 'from-purple-500 to-pink-400' },
+    { label: 'Hires This Month', value: stats.hiresThisMonth || 0, change: '+2', trend: 'up', icon: FiAward, color: 'from-emerald-500 to-teal-400' },
+    { label: 'Response Rate', value: stats.responseRate || '0%', change: '+5%', trend: 'up', icon: FiTrendingUp, color: 'from-amber-500 to-orange-400' },
+  ];
+
+  const jobsData = jobs.length > 0 ? jobs : [
+    { _id: 1, title: 'Senior Frontend Developer', applicants: 45, status: 'active', createdAt: '2 days ago', salary: '$120K - $150K' },
+    { _id: 2, title: 'Product Designer', applicants: 32, status: 'active', createdAt: '3 days ago', salary: '$90K - $120K' },
+    { _id: 3, title: 'Backend Engineer', applicants: 28, status: 'active', createdAt: '5 days ago', salary: '$130K - $160K' },
+    { _id: 4, title: 'DevOps Engineer', applicants: 15, status: 'paused', createdAt: '1 week ago', salary: '$110K - $140K' },
+  ];
+
+  const candidatesData = candidates.length > 0 ? candidates.map(app => ({
+    _id: app._id,
+    name: app.employeeId?.firstName || app.firstName || 'Candidate',
+    role: app.jobId?.title || 'Position',
+    status: app.status,
+    rating: 4.5,
+    avatar: (app.employeeId?.firstName || 'C')[0] + (app.employeeId?.lastName || '')[0] || 'C',
+    experience: 'N/A',
+    location: app.city || 'N/A',
+    skills: []
+  })) : [
+    { _id: 1, name: 'Sarah Chen', role: 'Frontend Developer', status: 'interview', rating: 4.8, avatar: 'SC', experience: '5 years', location: 'San Francisco, CA', skills: ['React', 'TypeScript'] },
+    { _id: 2, name: 'Marcus Johnson', role: 'Product Designer', status: 'screening', rating: 4.5, avatar: 'MJ', experience: '7 years', location: 'New York, NY', skills: ['Figma'] },
+    { _id: 3, name: 'Emily Davis', role: 'Backend Developer', status: 'applied', rating: 4.2, avatar: 'ED', experience: '4 years', location: 'Austin, TX', skills: ['Python'] },
+    { _id: 4, name: 'James Wilson', role: 'DevOps Engineer', status: 'hired', rating: 4.9, avatar: 'JW', experience: '6 years', location: 'Seattle, WA', skills: ['AWS'] },
+  ];
+
+  const messagesData = messages.length > 0 ? messages.map((m, i) => ({
+    _id: m._id || i,
+    name: m.user?.firstName || m.email || 'User',
+    lastMessage: m.lastMessage || m.message || 'No messages',
+    time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : 'N/A',
+    unread: m.unread > 0,
+    avatar: (m.user?.firstName || 'U')[0]
+  })) : [
+    { _id: 1, name: 'Sarah Chen', lastMessage: 'Thank you for the opportunity!', time: '2 min ago', unread: true, avatar: 'SC' },
+    { _id: 2, name: 'Marcus Johnson', lastMessage: 'When is the next interview?', time: '1 hour ago', unread: true, avatar: 'MJ' },
+    { _id: 3, name: 'Emily Davis', lastMessage: 'I have attached my updated resume.', time: '3 hours ago', unread: false, avatar: 'ED' },
+  ];
+
+  const applicationsData = [
+    { stage: 'Applied', count: candidates.filter(c => c.status === 'applied').length || 128, color: 'from-blue-400 to-blue-600' },
+    { stage: 'Screening', count: candidates.filter(c => c.status === 'screening').length || 45, color: 'from-purple-400 to-purple-600' },
+    { stage: 'Interview', count: candidates.filter(c => c.status === 'interview').length || 18, color: 'from-amber-400 to-amber-600' },
+    { stage: 'Offer', count: candidates.filter(c => c.status === 'offer').length || 6, color: 'from-emerald-400 to-emerald-600' },
+    { stage: 'Hired', count: candidates.filter(c => c.status === 'accepted').length || 8, color: 'from-cyan-400 to-cyan-600' },
+  ];
+
   const orb1X = useTransform(mouseX, [-20, 20], [-15, 15]);
   const orb1Y = useTransform(mouseY, [-20, 20], [-15, 15]);
   const orb2X = useTransform(mouseX, [-20, 20], [20, -20]);
@@ -54,50 +168,6 @@ const RecruiterDashboard = () => {
     { id: 'messages', label: 'Messages', icon: FiMessageSquare },
     { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
     { id: 'settings', label: 'Settings', icon: FiSettings },
-  ];
-
-  const kpiCards = [
-    { label: 'Active Jobs', value: 12, change: '+3', trend: 'up', icon: FiBriefcase, color: 'from-blue-500 to-cyan-400' },
-    { label: 'Total Applicants', value: 248, change: '+18%', trend: 'up', icon: FiUsers, color: 'from-purple-500 to-pink-400' },
-    { label: 'Hires This Month', value: 8, change: '+2', trend: 'up', icon: FiAward, color: 'from-emerald-500 to-teal-400' },
-    { label: 'Response Rate', value: '94%', change: '+5%', trend: 'up', icon: FiTrendingUp, color: 'from-amber-500 to-orange-400' },
-  ];
-
-  const jobs = [
-    { id: 1, title: 'Senior Frontend Developer', applicants: 45, status: 'active', posted: '2 days ago', salary: '$120K - $150K' },
-    { id: 2, title: 'Product Designer', applicants: 32, status: 'active', posted: '3 days ago', salary: '$90K - $120K' },
-    { id: 3, title: 'Backend Engineer', applicants: 28, status: 'active', posted: '5 days ago', salary: '$130K - $160K' },
-    { id: 4, title: 'DevOps Engineer', applicants: 15, status: 'paused', posted: '1 week ago', salary: '$110K - $140K' },
-  ];
-
-  const candidates = [
-    { id: 1, name: 'Sarah Chen', role: 'Frontend Developer', status: 'interview', rating: 4.8, avatar: 'SC', experience: '5 years', location: 'San Francisco, CA', skills: ['React', 'TypeScript', 'Node.js'] },
-    { id: 2, name: 'Marcus Johnson', role: 'Product Designer', status: 'screening', rating: 4.5, avatar: 'MJ', experience: '7 years', location: 'New York, NY', skills: ['Figma', 'Sketch', 'Adobe XD'] },
-    { id: 3, name: 'Emily Davis', role: 'Backend Developer', status: 'applied', rating: 4.2, avatar: 'ED', experience: '4 years', location: 'Austin, TX', skills: ['Python', 'Django', 'PostgreSQL'] },
-    { id: 4, name: 'James Wilson', role: 'DevOps Engineer', status: 'hired', rating: 4.9, avatar: 'JW', experience: '6 years', location: 'Seattle, WA', skills: ['AWS', 'Kubernetes', 'Docker'] },
-  ];
-
-  const messages = [
-    { id: 1, name: 'Sarah Chen', lastMessage: 'Thank you for the opportunity!', time: '2 min ago', unread: true, avatar: 'SC' },
-    { id: 2, name: 'Marcus Johnson', lastMessage: 'When is the next interview?', time: '1 hour ago', unread: true, avatar: 'MJ' },
-    { id: 3, name: 'Emily Davis', lastMessage: 'I have attached my updated resume.', time: '3 hours ago', unread: false, avatar: 'ED' },
-  ];
-
-  const applications = [
-    { stage: 'Applied', count: 128, color: 'from-blue-400 to-blue-600' },
-    { stage: 'Screening', count: 45, color: 'from-purple-400 to-purple-600' },
-    { stage: 'Interview', count: 18, color: 'from-amber-400 to-amber-600' },
-    { stage: 'Offer', count: 6, color: 'from-emerald-400 to-emerald-600' },
-    { stage: 'Hired', count: 8, color: 'from-cyan-400 to-cyan-600' },
-  ];
-
-  const statsChart = [
-    { name: 'Jan', hires: 4, applicants: 45 },
-    { name: 'Feb', hires: 6, applicants: 52 },
-    { name: 'Mar', hires: 8, applicants: 68 },
-    { name: 'Apr', hires: 5, applicants: 55 },
-    { name: 'May', hires: 9, applicants: 72 },
-    { name: 'Jun', hires: 8, applicants: 85 },
   ];
 
   const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
@@ -341,7 +411,7 @@ const RecruiterDashboard = () => {
                 <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
                   <h3 className={`text-lg font-bold ${textPrimary} mb-4`}>Hiring Pipeline</h3>
                   <div className="flex gap-2 overflow-x-auto pb-2">
-                    {applications.map(app => (
+                    {applicationsData.map(app => (
                       <PipelineStage key={app.stage} {...app} />
                     ))}
                   </div>
@@ -351,9 +421,9 @@ const RecruiterDashboard = () => {
                 <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
                   <h3 className={`text-lg font-bold ${textPrimary} mb-4`}>Recent Messages</h3>
                   <div className="space-y-3">
-                    {messages.map(msg => (
+                    {messagesData.map(msg => (
                       <motion.div 
-                        key={msg.id}
+                        key={msg._id || msg.id}
                         whileHover={{ scale: 1.02 }}
                         className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}
                       >
@@ -384,20 +454,20 @@ const RecruiterDashboard = () => {
                       <FiPlus className="w-4 h-4" />Post Job
                     </motion.button>
                   </div>
-                  <div className="space-y-3">
-                    {jobs.map(job => <JobCard key={job.id} job={job} />)}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className={`text-lg font-bold ${textPrimary}`}>Top Candidates</h3>
-                    <button className={`text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>View All</button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {candidates.slice(0, 4).map(candidate => <CandidateCard key={candidate.id} candidate={candidate} />)}
-                  </div>
+<div className="space-y-3">
+                     {jobsData.map(job => <JobCard key={job._id || job.id} job={job} />)}
+                   </div>
+                 </div>
+               </div>
+               <div>
+                 <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+                   <div className="flex items-center justify-between mb-4">
+                     <h3 className={`text-lg font-bold ${textPrimary}`}>Top Candidates</h3>
+                     <button className={`text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>View All</button>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                     {candidatesData.slice(0, 4).map(candidate => <CandidateCard key={candidate._id || candidate.id} candidate={candidate} />)}
+                   </div>
                 </div>
               </div>
             </div>
@@ -418,7 +488,7 @@ const RecruiterDashboard = () => {
                 </motion.button>
               </div>
               <div className="space-y-4">
-                {jobs.map(job => <JobCard key={job.id} job={job} />)}
+                {jobsData.map(job => <JobCard key={job._id || job.id} job={job} />)}
               </div>
             </div>
           </motion.div>
@@ -450,7 +520,7 @@ const RecruiterDashboard = () => {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {candidates.map(candidate => <CandidateCard key={candidate.id} candidate={candidate} />)}
+                {candidatesData.map(candidate => <CandidateCard key={candidate._id || candidate.id} candidate={candidate} />)}
               </div>
             </div>
           </motion.div>
@@ -468,9 +538,9 @@ const RecruiterDashboard = () => {
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-1 space-y-2">
-                  {messages.map(msg => (
+                  {messagesData.map(msg => (
                     <motion.div 
-                      key={msg.id}
+                      key={msg._id || msg.id}
                       whileHover={{ scale: 1.02 }}
                       className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${darkMode ? 'bg-slate-700/30 hover:bg-slate-700/50' : 'bg-slate-50 hover:bg-slate-100'}`}
                     >
@@ -638,6 +708,16 @@ const RecruiterDashboard = () => {
               className={`p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
             >
               {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleRefresh}
+              className={`p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700 text-cyan-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
+              title="Refresh data"
+            >
+              <FiRefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </motion.button>
 
             <motion.button 

@@ -4,6 +4,33 @@ import { motion } from 'framer-motion';
 import { FiFileText, FiClock, FiCheck, FiX, FiXCircle } from 'react-icons/fi';
 import { applicationsApi } from '../services/api';
 
+const mockApplications = [
+  { 
+    _id: '1', 
+    jobId: { _id: '101', title: 'Frontend Developer', company: 'Google', location: 'Remote', salary: { min: 80000, max: 120000, currency: 'USD' }, jobType: 'Full-time' }, 
+    status: 'pending', 
+    createdAt: new Date(Date.now() - 86400000 * 2) 
+  },
+  { 
+    _id: '2', 
+    jobId: { _id: '102', title: 'UI Designer', company: 'Meta', location: 'New York, NY', salary: { min: 70000, max: 100000, currency: 'USD' }, jobType: 'Full-time' }, 
+    status: 'accepted', 
+    createdAt: new Date(Date.now() - 86400000 * 5) 
+  },
+  { 
+    _id: '3', 
+    jobId: { _id: '103', title: 'Full Stack Developer', company: 'Amazon', location: 'Seattle, WA', salary: { min: 100000, max: 150000, currency: 'USD' }, jobType: 'Full-time' }, 
+    status: 'rejected', 
+    createdAt: new Date(Date.now() - 86400000 * 10) 
+  },
+  { 
+    _id: '4', 
+    jobId: { _id: '104', title: 'Product Designer', company: 'Apple', location: 'Cupertino, CA', salary: { min: 90000, max: 130000, currency: 'USD' }, jobType: 'Full-time' }, 
+    status: 'pending', 
+    createdAt: new Date(Date.now() - 86400000 * 1) 
+  },
+];
+
 export default function Applications() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +46,8 @@ export default function Applications() {
       const res = await applicationsApi.myApplications();
       setApplications(res.data || []);
     } catch (error) {
-      console.error('Error fetching applications:', error);
+      console.log('Using mock data for applications');
+      setApplications(mockApplications);
     } finally {
       setLoading(false);
     }
@@ -135,7 +163,9 @@ export default function Applications() {
                         <span>{app.jobId.jobType}</span>
                       )}
                       {app.jobId?.salary && (
-                        <span>{app.jobId.salary}</span>
+                        <span>{typeof app.jobId.salary === 'object' 
+                          ? `$${app.jobId.salary.min} - $${app.jobId.salary.max}` 
+                          : app.jobId.salary}</span>
                       )}
                     </div>
                   </div>

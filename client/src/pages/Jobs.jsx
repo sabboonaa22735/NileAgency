@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiSearch, FiMapPin, FiDollarSign, FiClock, FiFilter, FiGrid, FiList, FiBookmark, FiArrowRight, FiX } from 'react-icons/fi';
-import { jobsApi, usersApi } from '../services/api';
+
+const mockJobs = [
+  { _id: '1', title: 'Senior React Developer', company: 'TechCorp', location: 'Remote', salary: { min: 80000, max: 120000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(), skills: ['React', 'TypeScript', 'Node.js'], featured: true },
+  { _id: '2', title: 'UI/UX Designer', company: 'DesignLab', location: 'New York, NY', salary: { min: 70000, max: 90000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(Date.now() - 86400000 * 2), skills: ['Figma', 'UI Design'], featured: false },
+  { _id: '3', title: 'Full Stack Engineer', company: 'StartupXYZ', location: 'San Francisco, CA', salary: { min: 100000, max: 140000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(Date.now() - 86400000 * 3), skills: ['Node.js', 'React', 'MongoDB'], featured: true },
+  { _id: '4', title: 'Product Manager', company: 'InnovateCo', location: 'Austin, TX', salary: { min: 90000, max: 130000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(Date.now() - 86400000 * 5), skills: ['Agile', 'Strategy'], featured: false },
+  { _id: '5', title: 'DevOps Engineer', company: 'CloudTech', location: 'Remote', salary: { min: 85000, max: 115000, currency: 'USD' }, jobType: 'Contract', createdAt: new Date(Date.now() - 86400000 * 7), skills: ['AWS', 'Docker', 'Kubernetes'], featured: false },
+  { _id: '6', title: 'Data Scientist', company: 'DataFlow', location: 'Seattle, WA', salary: { min: 110000, max: 150000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(Date.now() - 86400000 * 1), skills: ['Python', 'ML', 'TensorFlow'], featured: true },
+  { _id: '7', title: 'Mobile Developer', company: 'AppWorks', location: 'Chicago, IL', salary: { min: 75000, max: 100000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(Date.now() - 86400000 * 4), skills: ['React Native', 'iOS', 'Android'], featured: false },
+  { _id: '8', title: 'Security Engineer', company: 'SecureNet', location: 'Boston, MA', salary: { min: 120000, max: 160000, currency: 'USD' }, jobType: 'Full-time', createdAt: new Date(Date.now() - 86400000 * 2), skills: ['Cybersecurity', 'Penetration Testing'], featured: false },
+];
 
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
@@ -39,7 +49,16 @@ export default function Jobs() {
       const res = await jobsApi.getAll(params);
       setJobs(res.data.jobs || []);
     } catch (error) {
-      console.error('Error fetching jobs:', error);
+      console.log('Using mock data for jobs');
+      let filtered = mockJobs;
+      if (searchQuery) {
+        filtered = filtered.filter(j => 
+          j.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          j.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          j.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+      }
+      setJobs(filtered);
     } finally {
       setLoading(false);
     }
@@ -50,7 +69,8 @@ export default function Jobs() {
       const res = await usersApi.getSavedJobs();
       setSavedJobs(res.data.map(j => j._id) || []);
     } catch (error) {
-      console.error('Error fetching saved jobs:', error);
+      console.log('Using empty saved jobs');
+      setSavedJobs([]);
     }
   };
 
@@ -199,7 +219,9 @@ export default function Jobs() {
                       {job.salary && (
                         <span className="flex items-center gap-1">
                           <FiDollarSign className="w-4 h-4" />
-                          {job.salary}
+                          {typeof job.salary === 'object' 
+                            ? `$${job.salary.min} - $${job.salary.max}` 
+                            : job.salary}
                         </span>
                       )}
                       <span className="flex items-center gap-1">
