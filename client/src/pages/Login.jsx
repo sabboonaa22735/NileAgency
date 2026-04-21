@@ -1,113 +1,183 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiArrowRight, FiLock, FiMail, FiShield, FiStar, FiArrowLeft, FiEye, FiEyeOff, FiZap, FiCheck } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import AuthShell from '../components/ui/AuthShell';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, logout } = useAuth();
+  const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:5000/api/auth/google';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
       const data = await login(email, password);
-      
-      if (!data.user.role) {
-        navigate('/role-selection');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate(data.user.role ? '/dashboard' : '/role-selection');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     }
+
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-20">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30" />
-      <div className="absolute top-1/3 -left-20 w-80 h-80 bg-brand-indigo/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/3 -right-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
-      
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md relative"
-      >
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-brand-indigo flex items-center justify-center">
-              <span className="text-white font-bold text-xl">N</span>
-            </div>
-          </Link>
-          <h1 className="text-3xl font-bold text-brand-dark mb-2">Welcome Back</h1>
-          <p className="text-brand-gray">Sign in to continue to your dashboard</p>
-        </div>
+    <AuthShell
+      badge="Secure access"
+      title="Welcome back"
+      subtitle="Step into a sharper, faster recruitment workspace."
+      sideTitle="A more premium way to hire, apply, and move work forward."
+      sideBody="Nile Agency now feels more cinematic and product-grade, with depth, motion, and cleaner focus through every workflow."
+      sideStats={[
+        { value: '24/7', label: 'Live recruiter access' },
+        { value: '10k+', label: 'Roles in motion' },
+        { value: '98%', label: 'Approval confidence' }
+      ]}
+    >
+      <div className="theme-toggle-wrapper flex justify-end mb-4">
+        <motion.button
+          onClick={toggleTheme}
+          className="theme-btn"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <span className="theme-icon-text">{isDark ? '☀️' : '🌙'}</span>
+        </motion.button>
+      </div>
 
-        <div className="glass rounded-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-2">Email</label>
-              <div className="relative">
-                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-gray" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-glass w-full pl-12"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-2">Password</label>
-              <div className="relative">
-                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-gray" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-glass w-full pl-12"
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              className="error-banner"
             >
-              {loading ? 'Signing in...' : 'Sign In'} <FiArrowRight />
-            </button>
-          </form>
+              <span>{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <div className="mt-6 text-center">
-            <p className="text-brand-gray">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-brand-indigo font-medium">
-                Register
-              </Link>
-            </p>
+        <div className="input-group">
+          <label className="input-label">Email</label>
+          <div className="input-wrapper">
+            <div className="input-icon">
+              <FiMail />
+            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="input-field"
+              required
+            />
           </div>
         </div>
-      </motion.div>
-    </div>
+
+        <div className="input-group">
+          <label className="input-label">Password</label>
+          <div className="input-wrapper">
+            <div className="input-icon">
+              <FiLock />
+            </div>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              className="input-field pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="password-toggle"
+            >
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <label className="checkbox-label">
+            <input type="checkbox" className="checkbox-input" />
+            <span className="checkbox-custom"></span>
+            <span>Remember me</span>
+          </label>
+          <Link to="/forgot-password" className="forgot-link">
+            Forgot password?
+          </Link>
+        </div>
+
+        <motion.button
+          type="submit"
+          disabled={loading}
+          className="submit-btn btn-3d-press ripple-effect w-full"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {loading ? (
+            <span className="loading-spinner"></span>
+          ) : (
+            <>
+              <span>Sign In</span>
+              <FiArrowRight className="btn-icon" />
+            </>
+          )}
+        </motion.button>
+
+        <div className="divider">
+          <span>or continue with</span>
+        </div>
+
+        <motion.button
+          type="button"
+          onClick={handleGoogleLogin}
+          className="google-btn"
+          whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.12)' }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <FcGoogle className="google-icon" />
+          <span>Continue with Google</span>
+        </motion.button>
+      </form>
+
+      <div className="mt-8 feature-card">
+        <div className="feature-header">
+          <FiZap className="feature-icon" />
+          <span>What's new</span>
+        </div>
+        <ul className="feature-list">
+          <li><FiCheck className="check-icon" /> Faster authentication</li>
+          <li><FiCheck className="check-icon" /> Richer dashboards</li>
+          <li><FiCheck className="check-icon" /> Motion-led feedback</li>
+        </ul>
+      </div>
+
+      <p className="mt-6 signup-prompt">
+        Don't have an account?{' '}
+        <Link to="/register" className="signup-link">
+          Create one
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

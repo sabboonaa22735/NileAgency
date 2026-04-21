@@ -85,4 +85,23 @@ router.delete('/bookmark/:jobId', auth, async (req, res) => {
   }
 });
 
+router.get('/saved-jobs', auth, async (req, res) => {
+  try {
+    const profile = await EmployeeProfile.findOne({ userId: req.user._id })
+      .populate('savedJobs');
+    res.json(profile?.savedJobs || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/profile-views', auth, async (req, res) => {
+  try {
+    const profile = await EmployeeProfile.findOne({ userId: req.user._id });
+    res.json({ views: profile?.profileViews || 0 });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

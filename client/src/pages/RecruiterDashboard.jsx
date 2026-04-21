@@ -1,728 +1,810 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiBriefcase, FiMessageSquare, FiBell, FiLogOut, FiPlus, FiMapPin, FiDollarSign, FiClock, FiX, FiMenu, FiTrash2, FiSend, FiUser, FiSearch, FiChevronDown, FiCheck, FiGlobe, FiSun, FiMoon } from 'react-icons/fi';
-import { io } from 'socket.io-client';
-import { useAuth } from '../context/AuthContext';
-import { jobsApi, usersApi, notificationsApi, chatApi } from '../services/api';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { 
+  FiHome, FiBriefcase, FiUsers, FiMessageSquare, FiBarChart2, FiSettings, FiSearch, FiBell, FiSun, FiMoon,
+  FiPlus, FiFilter, FiMoreVertical, FiClock, FiStar, FiDownload, FiUpload,
+  FiSend, FiPaperclip, FiPhone, FiVideo, FiCalendar, FiMapPin, FiDollarSign, FiAward, FiTrendingUp,
+  FiChevronLeft, FiChevronRight, FiChevronDown, FiArrowUp, FiArrowDown, FiLogOut, FiUser, FiEdit, FiShield, FiMenu,
+  FiX, FiFilter as FiFilterIcon
+} from 'react-icons/fi';
 
-let socket;
-
-export default function RecruiterDashboard() {
-  const [activeTab, setActiveTab] = useState('jobs');
-  const [jobs, setJobs] = useState([]);
-  const [profile, setProfile] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+const RecruiterDashboard = () => {
+  const [darkMode, setDarkMode] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showPostJob, setShowPostJob] = useState(false);
-  const [uiLanguage, setUiLanguage] = useState('English');
-  const [darkMode, setDarkMode] = useState(false);
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const [jobSearchQuery, setJobSearchQuery] = useState('');
-  const [showJobDropdown, setShowJobDropdown] = useState(false);
-  const [customJobTitle, setCustomJobTitle] = useState('');
-  const [newJob, setNewJob] = useState({
-    title: '', description: '', jobType: 'full-time', salaryNegotiable: false, skills: '',
-    gender: 'both', level: 'Not required', levelOther: '', country: 'Ethiopia', state: '', city: '', kebele: '',
-    experience: 'Not Required', experienceOther: '', companyName: '', language: [], languageOther: ''
-  });
+  const [showProfile, setShowProfile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const ethiopianRegions = [
-    'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa',
-    'Gambela', 'Harari', 'Oromia', 'Sidama', 'Somali', 'South West Ethiopia Peoples\' Region',
-    'Tigray', 'Wolaita', 'Other'
-  ];
+  const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
+  const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
+  const bgMain = darkMode ? 'bg-[#0B0F19]' : 'bg-slate-50';
+  const bgCard = darkMode ? 'bg-slate-800/50' : 'bg-white';
+  const bgSidebar = darkMode ? 'bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900' : 'bg-white';
+  const borderColor = darkMode ? 'border-slate-700/50' : 'border-slate-200';
+  const borderSubtle = darkMode ? 'border-slate-800' : 'border-slate-100';
+  
+  const glassEffect = darkMode ? 'backdrop-blur-xl bg-slate-800/60 border border-slate-700/50' : 'backdrop-blur-xl bg-white/80 border border-slate-200/50';
 
-  const ethiopianJobCategories = [
-    'Accountant', 'Administrative Assistant', 'Architect', 'Banker', 'Business Analyst', 'Cashier',
-    'Chef', 'Civil Engineer', 'Clinical Officer', 'Computer Operator', 'Construction Worker', 'Consultant',
-    'Content Writer', 'Customer Service', 'Data Analyst', 'Data Entry Clerk', 'Database Administrator',
-    'Dental Surgeon', 'Designer', 'Doctor', 'Driver', 'Economist', 'Education Teacher', 'Electrical Engineer',
-    'Electrician', 'Engineer', 'Finance Manager', 'Financial Analyst', 'General Practitioner', 'Graphic Designer',
-    'HR Manager', 'HR Officer', 'IT Specialist', 'Journalist', 'Lab Technician', 'Lawyer', 'Librarian',
-    'Logistics Officer', 'Machine Operator', 'Marketing Manager', 'Marketing Officer', 'Mechanical Engineer',
-    'Medical Doctor', 'Nurse', 'Office Assistant', 'Pharmacist', 'Physical Therapist', 'Pilot', 'Plumber',
-    'Procurement Officer', 'Project Manager', 'Psychologist', 'Public Relations Officer', 'Quality Assurance',
-    'Receptionist', 'Researcher', 'Sales Manager', 'Sales Representative', 'Secretary', 'Security Guard',
-    'Social Worker', 'Software Developer', 'Statistician', 'Stock Clerk', 'Surveyor', 'Teacher', 'Technician',
-    'Telecommunications Engineer', 'Tour Guide', 'Training Officer', 'Translator', 'Transport Manager',
-    'Veterinarian', 'Video Editor', 'Warehouse Manager', 'Web Developer', 'Other'
-  ];
-
-  const filteredJobCategories = ethiopianJobCategories.filter(job =>
-    job.toLowerCase().includes(jobSearchQuery.toLowerCase())
-  );
-  const [conversations, setConversations] = useState({});
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [adminChatOpen, setAdminChatOpen] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState({});
-  const [admin, setAdmin] = useState(null);
-  const messagesEndRef = useRef(null);
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const translations = {
-    English: {
-      myJobs: 'My Jobs', messages: 'Messages', profile: 'Company Profile',
-      postJob: 'Post Job', settings: 'Settings', preferences: 'Preferences',
-      security: 'Security', logout: 'Logout', noJobs: 'No jobs posted yet',
-      postFirstJob: 'Post Your First Job', applicants: 'applicants',
-      active: 'active', closed: 'closed', chatWithAdmin: 'Chat with Admin',
-      messagesComing: 'Messages feature coming soon', completeProfile: 'Complete Your Company Profile',
-      companyName: 'Company Name', companyDescription: 'Company Description', industry: 'Industry',
-      companySize: 'Company Size', location: 'Location', website: 'Website',
-      saveProfile: 'Save Company Profile', notifications: 'Notifications',
-      markAllRead: 'Mark all read', noNotifications: 'No notifications yet'
-    },
-    'Afan Oromo': {
-      myJobs: 'Hojii keewani', messages: 'Ergaa', profile: 'Sadarkii Kampaniyaa',
-      postJob: 'Hojii Baxi', settings: 'Haala', preferences: 'Fedhii',
-      security: 'Tasgabee', logout: 'Baasi', noJobs: 'Hojii laale',
-      postFirstJob: 'Hojii Tokkoo Baxi', applicants: 'dhaabbii',
-      active: 'haala galaa', closed: 'ciirce', chatWithAdmin: 'Ergaa AdminWani',
-      messagesComing: 'Ergaa dhiha', completeProfile: 'Sadarkii Kampaniyaa Guuti',
-      companyName: 'Maqaa Kampaniyaa', companyDescription: 'IBSA Kampaniyaa', industry: 'Industrii',
-      companySize: 'Baay\'ina nama', location: 'Iddoo', website: 'Website',
-      saveProfile: 'Sadarkii Saveessi', notifications: 'Barruu',
-      markAllRead: 'Hunda Dubbiisaa', noNotifications: 'Barruu hinjiruu'
-    },
-    Amharic: {
-      myJobs: 'የኔ ስራዎች', messages: 'መልክቶች', profile: 'የኩባንያው ፕሮፋይል',
-      postJob: 'ስራ ለጥፍ', settings: 'ቅንብሮች', preferences: 'ምርጫዎች',
-      security: 'ደህንነት', logout: 'ውጣ', noJobs: 'ስራ የለም',
-      postFirstJob: 'የመጀመሪያውስራን ለጥፍ', applicants: 'አመራር',
-      active: 'ንቃታማ', closed: 'ተዘግቷል', chatWithAdmin: 'ከአስተዳዳሪ ጋር መልክት',
-      messagesComing: 'መልክቶች በቅርብ እየመጡ', completeProfile: 'የኩባንያውን ፕሮፋይል ጨርስ',
-      companyName: 'የኩባንያው ስም', companyDescription: 'የኩባንያው ገለፃፃ', industry: 'ኢንዱስትሪ',
-      companySize: 'የኩባንያው መጠን', location: 'አካባቢ', website: 'ድህረ ገፅ',
-      saveProfile: 'ፕሮፋይል አስቀምጥ', notifications: 'ማስታወቂያዎች',
-      markAllRead: 'ሁሉንም አንብብ', noNotifications: 'ማስታወቂያዎች የሉም'
-    }
-  };
-
-  const t = (key) => translations[uiLanguage]?.[key] || translations['English'][key] || key;
-
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  
   useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
-
-  const loadData = async () => {
-    try {
-      const [jobsRes, profileRes, notificationsRes] = await Promise.all([
-        jobsApi.getAll({ myJobs: true }),
-        usersApi.getProfile(),
-        notificationsApi.getAll()
-      ]);
-      setJobs(jobsRes.data.jobs);
-      setProfile(profileRes.data);
-      setNotifications(notificationsRes.data);
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  };
-
-  const handlePostJob = async (e) => {
-    e.preventDefault();
-    try {
-      await jobsApi.create({
-        ...newJob,
-        gender: newJob.gender,
-        country: newJob.country,
-        state: newJob.state,
-        city: newJob.city,
-        kebele: newJob.kebele,
-        companyName: newJob.companyName,
-        educationLevel: newJob.level === 'Other' ? newJob.levelOther : newJob.level,
-        experienceLevel: newJob.experience === 'Other' ? newJob.experienceOther : newJob.experience,
-        salaryNegotiable: newJob.salaryNegotiable,
-        techStack: newJob.skills.split(',').map(s => s.trim()),
-        language: newJob.language,
-        languageOther: newJob.languageOther
-      });
-      setShowPostJob(false);
-      setNewJob({
-        title: '', description: '', jobType: 'full-time', salaryNegotiable: false, skills: '',
-        gender: 'both', level: 'Not required', levelOther: '', country: 'Ethiopia', state: '', city: '', kebele: '',
-        experience: 'Not Required', experienceOther: '', companyName: '', language: [], languageOther: ''
-      });
-      loadData();
-      alert('Job posted successfully!');
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to post job');
-    }
-  };
-
-  const handleDeleteJob = async (jobId) => {
-    if (!confirm('Are you sure you want to delete this job?')) return;
-    try {
-      await jobsApi.delete(jobId);
-      loadData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  const handleMarkAllRead = async () => {
-    try {
-      await notificationsApi.markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = {
-      companyName: formData.get('companyName'),
-      companyDescription: formData.get('companyDescription'),
-      industry: formData.get('industry'),
-      companySize: formData.get('companySize'),
-      location: formData.get('location'),
-      website: formData.get('website')
+    const handleMouseMove = (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 20;
+      const y = (e.clientY / window.innerHeight - 0.5) * 20;
+      mouseX.set(x);
+      mouseY.set(y);
     };
-    try {
-      await usersApi.updateProfile(data);
-      loadData();
-      alert('Company profile saved successfully!');
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [mouseX, mouseY]);
+
+  const orb1X = useTransform(mouseX, [-20, 20], [-15, 15]);
+  const orb1Y = useTransform(mouseY, [-20, 20], [-15, 15]);
+  const orb2X = useTransform(mouseX, [-20, 20], [20, -20]);
+  const orb2Y = useTransform(mouseY, [-20, 20], [12, -12]);
 
   const tabs = [
-    { id: 'jobs', label: t('myJobs'), icon: FiBriefcase },
-    { id: 'messages', label: t('messages'), icon: FiMessageSquare },
-    { id: 'profile', label: t('profile'), icon: FiUser },
-    { id: 'settings', label: t('settings'), icon: FiBriefcase },
-    { id: 'preferences', label: t('preferences'), icon: FiBriefcase },
-    { id: 'security', label: t('security'), icon: FiBriefcase }
+    { id: 'dashboard', label: 'Dashboard', icon: FiHome },
+    { id: 'jobs', label: 'Jobs', icon: FiBriefcase },
+    { id: 'candidates', label: 'Candidates', icon: FiUsers },
+    { id: 'messages', label: 'Messages', icon: FiMessageSquare },
+    { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
+    { id: 'settings', label: 'Settings', icon: FiSettings },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
-      <nav className="glass sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-brand-indigo flex items-center justify-center">
-                <span className="text-white font-bold text-lg">N</span>
-              </div>
-              <span className="text-xl font-bold text-brand-dark">Nile Agency</span>
-            </Link>
-            <div className="hidden md:flex items-center gap-6">
-              <div className="flex gap-4">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 ${activeTab === tab.id ? 'text-brand-indigo font-semibold' : 'text-brand-gray hover:text-brand-dark'}`}
-                  >
-                    <tab.icon className="w-5 h-5" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setShowPostJob(true)} className="btn-primary">
-                <FiPlus className="w-5 h-5" /> {t('postJob')}
-              </button>
-              <div className="relative">
-                <button onClick={() => setShowLangMenu(!showLangMenu)} className="text-brand-gray hover:text-brand-dark">
-                  <FiGlobe className="w-5 h-5" />
-                </button>
-                {showLangMenu && (
-                  <div className="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-                    {['English', 'Afan Oromo', 'Amharic'].map((lang) => (
-                      <button
-                        key={lang}
-                        onClick={() => { setUiLanguage(lang); setShowLangMenu(false); }}
-                        className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${uiLanguage === lang ? 'text-brand-indigo font-medium' : 'text-brand-dark'}`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => setDarkMode(!darkMode)} className="text-brand-gray hover:text-brand-dark">
-                {darkMode ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
-              </button>
-              <div className="relative">
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative text-brand-gray hover:text-brand-dark transition mr-3"
-                >
-                  <FiBell className="w-5 h-5" />
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
-                      {notifications.filter(n => !n.read).length}
-                    </span>
-                  )}
-                </button>
-                {showNotifications && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 max-h-96 overflow-y-auto"
-                  >
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-                      <h3 className="font-semibold text-brand-dark">Notifications</h3>
-                      {notifications.some(n => !n.read) && (
-                        <button 
-                          onClick={handleMarkAllRead}
-                          className="text-xs text-brand-indigo hover:text-indigo-700"
-                        >
-                          Mark all read
-                        </button>
-                      )}
-                    </div>
-                    {notifications.length === 0 ? (
-                      <p className="px-4 py-6 text-center text-brand-gray">No notifications yet</p>
-                    ) : (
-                      notifications.slice(0, 10).map((notification) => (
-                        <button
-                          key={notification._id}
-                          onClick={() => {
-                            if (!notification.read) {
-                              notificationsApi.markAsRead(notification._id);
-                              setNotifications(prev => prev.map(n => 
-                                n._id === notification._id ? { ...n, read: true } : n
-                              ));
-                            }
-                            setShowNotifications(false);
-                          }}
-                          className={`w-full px-4 py-3 text-left flex items-start gap-3 hover:bg-gray-50 transition ${
-                            !notification.read ? 'bg-indigo-50' : ''
-                          }`}
-                        >
-                          <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                            notification.type === 'job' ? 'bg-green-500' :
-                            notification.type === 'application' ? 'bg-blue-500' :
-                            notification.type === 'message' ? 'bg-yellow-500' :
-                            'bg-gray-500'
-                          }`} />
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${!notification.read ? 'text-brand-dark' : 'text-brand-gray'}`}>
-                              {notification.title}
-                            </p>
-                            <p className="text-xs text-brand-gray truncate">{notification.message}</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(notification.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </motion.div>
-                )}
-              </div>
-              <div className="relative">
-                <button 
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="w-9 h-9 rounded-full bg-brand-indigo flex items-center justify-center hover:bg-indigo-600 transition"
-                >
-                  <span className="text-white font-medium">{user?.email?.[0]?.toUpperCase()}</span>
-                </button>
-                {showProfileMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50"
-                  >
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-brand-dark truncate">{user?.email}</p>
-                      <p className="text-xs text-brand-gray capitalize">{user?.role}</p>
-                    </div>
-                    <button
-                      onClick={() => { setShowProfileMenu(false); setActiveTab('profile'); }}
-                      className="w-full px-4 py-2 text-left text-brand-gray hover:bg-gray-50 flex items-center gap-2 transition"
-                    >
-                      <FiUser className="w-4 h-4" />
-                      Company Profile
-                    </button>
-                    <button
-                      onClick={() => { setShowProfileMenu(false); setActiveTab('settings'); }}
-                      className="w-full px-4 py-2 text-left text-brand-gray hover:bg-gray-50 flex items-center gap-2 transition"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Settings
-                    </button>
-                    <button
-                      onClick={() => { setShowProfileMenu(false); setActiveTab('preferences'); }}
-                      className="w-full px-4 py-2 text-left text-brand-gray hover:bg-gray-50 flex items-center gap-2 transition"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                      </svg>
-                      Preferences
-                    </button>
-                    <button
-                      onClick={() => { setShowProfileMenu(false); setActiveTab('security'); }}
-                      className="w-full px-4 py-2 text-left text-brand-gray hover:bg-gray-50 flex items-center gap-2 transition"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      Security
-                    </button>
-                    <div className="border-t border-gray-100 mt-1 pt-1">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-50 flex items-center gap-2 transition"
-                      >
-                        <FiLogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            </div>
+  const kpiCards = [
+    { label: 'Active Jobs', value: 12, change: '+3', trend: 'up', icon: FiBriefcase, color: 'from-blue-500 to-cyan-400' },
+    { label: 'Total Applicants', value: 248, change: '+18%', trend: 'up', icon: FiUsers, color: 'from-purple-500 to-pink-400' },
+    { label: 'Hires This Month', value: 8, change: '+2', trend: 'up', icon: FiAward, color: 'from-emerald-500 to-teal-400' },
+    { label: 'Response Rate', value: '94%', change: '+5%', trend: 'up', icon: FiTrendingUp, color: 'from-amber-500 to-orange-400' },
+  ];
+
+  const jobs = [
+    { id: 1, title: 'Senior Frontend Developer', applicants: 45, status: 'active', posted: '2 days ago', salary: '$120K - $150K' },
+    { id: 2, title: 'Product Designer', applicants: 32, status: 'active', posted: '3 days ago', salary: '$90K - $120K' },
+    { id: 3, title: 'Backend Engineer', applicants: 28, status: 'active', posted: '5 days ago', salary: '$130K - $160K' },
+    { id: 4, title: 'DevOps Engineer', applicants: 15, status: 'paused', posted: '1 week ago', salary: '$110K - $140K' },
+  ];
+
+  const candidates = [
+    { id: 1, name: 'Sarah Chen', role: 'Frontend Developer', status: 'interview', rating: 4.8, avatar: 'SC', experience: '5 years', location: 'San Francisco, CA', skills: ['React', 'TypeScript', 'Node.js'] },
+    { id: 2, name: 'Marcus Johnson', role: 'Product Designer', status: 'screening', rating: 4.5, avatar: 'MJ', experience: '7 years', location: 'New York, NY', skills: ['Figma', 'Sketch', 'Adobe XD'] },
+    { id: 3, name: 'Emily Davis', role: 'Backend Developer', status: 'applied', rating: 4.2, avatar: 'ED', experience: '4 years', location: 'Austin, TX', skills: ['Python', 'Django', 'PostgreSQL'] },
+    { id: 4, name: 'James Wilson', role: 'DevOps Engineer', status: 'hired', rating: 4.9, avatar: 'JW', experience: '6 years', location: 'Seattle, WA', skills: ['AWS', 'Kubernetes', 'Docker'] },
+  ];
+
+  const messages = [
+    { id: 1, name: 'Sarah Chen', lastMessage: 'Thank you for the opportunity!', time: '2 min ago', unread: true, avatar: 'SC' },
+    { id: 2, name: 'Marcus Johnson', lastMessage: 'When is the next interview?', time: '1 hour ago', unread: true, avatar: 'MJ' },
+    { id: 3, name: 'Emily Davis', lastMessage: 'I have attached my updated resume.', time: '3 hours ago', unread: false, avatar: 'ED' },
+  ];
+
+  const applications = [
+    { stage: 'Applied', count: 128, color: 'from-blue-400 to-blue-600' },
+    { stage: 'Screening', count: 45, color: 'from-purple-400 to-purple-600' },
+    { stage: 'Interview', count: 18, color: 'from-amber-400 to-amber-600' },
+    { stage: 'Offer', count: 6, color: 'from-emerald-400 to-emerald-600' },
+    { stage: 'Hired', count: 8, color: 'from-cyan-400 to-cyan-600' },
+  ];
+
+  const statsChart = [
+    { name: 'Jan', hires: 4, applicants: 45 },
+    { name: 'Feb', hires: 6, applicants: 52 },
+    { name: 'Mar', hires: 8, applicants: 68 },
+    { name: 'Apr', hires: 5, applicants: 55 },
+    { name: 'May', hires: 9, applicants: 72 },
+    { name: 'Jun', hires: 8, applicants: 85 },
+  ];
+
+  const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
+
+  const GradientOrbs = () => (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+      <motion.div 
+        style={{ x: orb1X, y: orb1Y }}
+        className="absolute left-[10%] top-[20%] w-72 h-72 rounded-full bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-cyan-500/10 blur-[100px]" 
+      />
+      <motion.div 
+        style={{ x: orb2X, y: orb2Y }}
+        className="absolute right-[15%] bottom-[25%] w-96 h-96 rounded-full bg-gradient-to-tl from-rose-500/15 via-pink-500/10 to-purple-500/15 blur-[120px]" 
+      />
+      <div className="absolute left-[60%] top-[10%] w-56 h-56 rounded-full bg-gradient-to-r from-emerald-500/12 to-teal-500/8 blur-[80px]" />
+      <div className="absolute right-[5%] top-[60%] w-48 h-48 rounded-full bg-gradient-to-br from-amber-500/10 to-orange-500/8 blur-[70px]" />
+    </div>
+  );
+
+  const FloatingParticles = () => (
+    <div className="fixed inset-0 pointer-events-none -z-10">
+      {[...Array(6)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ 
+            opacity: [0.2, 0.5, 0.2], 
+            scale: [1, 1.2, 1],
+            y: [0, -20, 0],
+            x: [0, 10, 0]
+          }}
+          transition={{ 
+            duration: 4 + i * 0.5, 
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 0.8
+          }}
+          className={`absolute w-2 h-2 rounded-full ${
+            i % 3 === 0 ? 'bg-indigo-400' : i % 3 === 1 ? 'bg-cyan-400' : 'bg-purple-400'
+          }`}
+          style={{
+            left: `${15 + i * 15}%`,
+            top: `${20 + (i % 3) * 25}%`,
+            filter: 'blur(1px)'
+          }}
+        />
+      ))}
+    </div>
+  );
+
+  const GridPattern = () => (
+    <div className="fixed inset-0 pointer-events-none -z-10 opacity-30">
+      <div className="absolute inset-0" style={{
+        backgroundImage: `linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px'
+      }} />
+    </div>
+  );
+
+  const StatCard = ({ title, value, change, trend, icon: Icon, color, delay }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: delay * 0.1, type: 'spring', damping: 20 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      className={`group relative p-5 lg:p-6 rounded-2xl cursor-pointer transition-all duration-500 overflow-hidden ${
+        darkMode 
+          ? 'bg-gradient-to-br from-slate-800/80 via-slate-800/60 to-slate-900/80 border-slate-700/50 hover:border-slate-600/50 shadow-xl shadow-black/20' 
+          : 'bg-gradient-to-br from-white via-white to-slate-50 border-slate-200/50 hover:border-slate-300/50 shadow-lg'
+      } backdrop-blur-xl`}
+    >
+      <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${color.replace('to-', '/20 via-').replace(' ', '')}/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+      
+      <motion.div
+        className="absolute top-0 right-0 w-24 h-24 rounded-full blur-[40px]"
+        style={{ background: color.split(' ')[1]?.replace('to-', '') || 'indigo', opacity: 0.15 }}
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.1, 0.2, 0.1]
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: delay * 0.3
+        }}
+      />
+      
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <motion.div whileHover={{ rotate: 5, scale: 1.1 }} className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg`}>
+            <Icon className="w-6 h-6 text-white" />
+          </motion.div>
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: delay * 0.1 + 0.2 }}
+            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+              trend === 'up' 
+                ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                : darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600'
+            }`}
+          >
+            {trend === 'up' ? <FiArrowUp className="w-3 h-3" /> : <FiArrowDown className="w-3 h-3" />}
+            {change}
+          </motion.div>
+        </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: delay * 0.1 + 0.1 }}
+        >
+          <div className={`text-3xl lg:text-4xl font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent mb-1`}>
+            {value}
+          </div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{title}</div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+
+  const JobCard = ({ job }) => (
+    <motion.div 
+      whileHover={{ scale: 1.01 }}
+      className={`p-5 rounded-xl ${darkMode ? 'bg-slate-800/40' : 'bg-white'} ${darkMode ? 'border-slate-700/30' : 'border-slate-200'} border hover:border-indigo-500/30 transition-all`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h3 className={`font-semibold ${textPrimary}`}>{job.title}</h3>
+          <p className={`text-sm ${textSecondary}`}>{job.posted}</p>
+        </div>
+        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+          job.status === 'active' 
+            ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+            : darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+        }`}>
+          {job.status}
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-1 text-sm ${textMuted}`}>
+            <FiUsers className="w-4 h-4" />
+            <span>{job.applicants} applicants</span>
+          </div>
+          <div className={`flex items-center gap-1 text-sm ${textMuted}`}>
+            <FiDollarSign className="w-4 h-4" />
+            <span>{job.salary}</span>
           </div>
         </div>
-      </nav>
+        <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}>
+          <FiMoreVertical className={`w-5 h-5 ${textSecondary}`} />
+        </motion.button>
+      </div>
+    </motion.div>
+  );
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'jobs' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 className="text-2xl font-bold text-brand-dark mb-6">My Jobs</h2>
-              <div className="space-y-4">
-              {jobs.length === 0 ? (
-                <div className="glass rounded-2xl p-8 text-center">
-                  <p className="text-brand-gray mb-4">{t('noJobs')}</p>
-                  <button onClick={() => setShowPostJob(true)} className="btn-primary">{t('postFirstJob')}</button>
-                </div>
-              ) : (
-                jobs.map((job) => (
-                  <motion.div key={job._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-semibold text-brand-dark mb-2">{job.title}</h3>
-                        <div className="flex flex-wrap gap-4 text-sm text-brand-gray mb-3">
-                          <span className="flex items-center gap-1"><FiMapPin /> {job.location || 'Remote'}</span>
-                          <span className="flex items-center gap-1"><FiClock /> {job.jobType}</span>
-                          <span className="flex items-center gap-1"><FiUser /> {job.applicants?.length || 0} {t('applicants')}</span>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${job.status === 'active' ? 'bg-green-100 text-green-700' : job.status === 'closed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {job.status === 'active' ? t('active') : job.status === 'closed' ? t('closed') : job.status}
-                        </span>
-                      </div>
-                      <button onClick={() => handleDeleteJob(job._id)} className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition">
-                        <FiTrash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </motion.div>
-        )}
+  const CandidateCard = ({ candidate }) => (
+    <motion.div 
+      whileHover={{ scale: 1.02, rotate: 0.5 }}
+      className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800/40' : 'bg-white'} ${darkMode ? 'border-slate-700/30' : 'border-slate-200'} border cursor-pointer hover:border-indigo-500/30 transition-all`}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${
+          candidate.status === 'hired' ? 'from-emerald-500 to-teal-500' :
+          candidate.status === 'interview' ? 'from-amber-500 to-orange-500' :
+          candidate.status === 'screening' ? 'from-purple-500 to-pink-500' :
+          'from-blue-500 to-cyan-500'
+        } flex items-center justify-center text-white font-bold`}>
+          {candidate.avatar}
+        </div>
+        <div className="flex-1">
+          <h4 className={`font-semibold ${textPrimary}`}>{candidate.name}</h4>
+          <p className={`text-sm ${textSecondary}`}>{candidate.role}</p>
+        </div>
+        <div className="flex items-center gap-1 text-amber-400">
+          <FiStar className="w-4 h-4 fill-current" />
+          <span className="text-sm font-medium">{candidate.rating}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {candidate.skills.slice(0, 3).map(skill => (
+          <span key={skill} className={`px-2 py-1 rounded-lg text-xs ${
+            darkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'
+          }`}>
+            {skill}
+          </span>
+        ))}
+      </div>
+      <div className="flex items-center justify-between">
+        <div className={`flex items-center gap-2 text-sm ${textMuted}`}>
+          <FiMapPin className="w-4 h-4" />
+          <span>{candidate.location}</span>
+        </div>
+        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+          candidate.status === 'hired' ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700' :
+          candidate.status === 'interview' ? darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700' :
+          candidate.status === 'screening' ? darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700' :
+          darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+        }`}>
+          {candidate.status}
+        </span>
+      </div>
+    </motion.div>
+  );
 
-        {activeTab === 'messages' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 className="text-2xl font-bold text-brand-dark mb-6">{t('chatWithAdmin')}</h2>
-            <div className="glass rounded-2xl p-8 text-center text-brand-gray">
-              <FiMessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>{t('messagesComing')}</p>
-            </div>
-          </motion.div>
-        )}
+  const PipelineStage = ({ stage, count, color }) => (
+    <div className="flex-1 min-w-[180px]">
+      <div className={`p-3 rounded-t-xl bg-gradient-to-r ${color}`}>
+        <div className="flex items-center justify-between">
+          <span className="text-white font-semibold text-sm">{stage}</span>
+          <span className="text-white/80 text-sm">{count}</span>
+        </div>
+      </div>
+      <div className={`p-3 rounded-b-xl ${darkMode ? 'bg-slate-800/30' : 'bg-slate-50'} ${darkMode ? 'border-slate-700/30' : 'border-slate-200'} border border-t-0`}>
+        <div className="h-24 rounded-lg bg-slate-500/10 flex items-center justify-center">
+          <span className={`text-sm ${textMuted}`}>Drag here</span>
+        </div>
+      </div>
+    </div>
+  );
 
-        {activeTab === 'profile' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 className="text-2xl font-bold text-brand-dark mb-6">{t('completeProfile')}</h2>
-            <div className="glass rounded-2xl p-6">
-              <form onSubmit={handleSaveProfile} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-brand-dark mb-2">{t('companyName')}</label>
-                  <input name="companyName" defaultValue={profile?.companyName} className="input-glass w-full" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-brand-dark mb-2">{t('companyDescription')}</label>
-                  <textarea name="companyDescription" defaultValue={profile?.companyDescription} className="input-glass w-full h-32" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-brand-dark mb-2">{t('industry')}</label>
-                  <input name="industry" defaultValue={profile?.industry} className="input-glass w-full" />
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-brand-dark mb-2">{t('companySize')}</label>
-                    <select name="companySize" defaultValue={profile?.companySize || '1-10'} className="input-glass w-full">
-                      <option value="1-10">1-10 employees</option>
-                      <option value="11-50">11-50 employees</option>
-                      <option value="51-200">51-200 employees</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-brand-dark mb-2">Location</label>
-                    <input name="location" defaultValue={profile?.location} className="input-glass w-full" />
-                  </div>
-                </div>
-                <button type="submit" className="btn-primary">Save Company Profile</button>
-              </form>
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <div className="mb-6">
+              <h2 className={`text-2xl font-bold ${textPrimary}`}>Dashboard</h2>
+              <p className={`${textSecondary} mt-1`}>Welcome back! Here's your recruitment overview.</p>
             </div>
-          </motion.div>
-)}
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+              {kpiCards.map((kpi, i) => (
+                <StatCard key={kpi.label} {...kpi} delay={i} />
+              ))}
+            </div>
 
-        {activeTab === 'preferences' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 className="text-2xl font-bold text-brand-dark mb-6">Preferences</h2>
-            <div className="glass rounded-2xl p-6 space-y-6">
-              <div className="border-b border-gray-100 pb-4">
-                <h3 className="text-lg font-semibold text-brand-dark mb-4">Job Posting Defaults</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-brand-dark mb-2">Default Job Type</label>
-                    <select className="input-glass w-full md:w-1/2">
-                      <option value="full-time">Full-time</option>
-                      <option value="part-time">Part-time</option>
-                      <option value="contract">Contract</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-brand-dark mb-2">Default Location</label>
-                    <select className="input-glass w-full md:w-1/2">
-                      <option value="Addis Ababa">Addis Ababa</option>
-                      <option value="Remote">Remote</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-brand-dark mb-4">Application Settings</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-brand-dark font-medium">Auto-approve Applications</p>
-                      <p className="text-sm text-brand-gray">Automatically approve matching applications</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-indigo"></div>
-                    </label>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-brand-dark font-medium">Show Company Logo</p>
-                      <p className="text-sm text-brand-gray">Display your company logo on job posts</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-indigo"></div>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-)}
-      </main>
-
-      {showPostJob && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="glass rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-brand-dark">Post New Job</h3>
-              <button onClick={() => setShowPostJob(false)} className="p-2 rounded-lg hover:bg-gray-100">
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handlePostJob} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Job Title</label>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    value={newJob.title} 
-                    onChange={(e) => {
-                      setNewJob({...newJob, title: e.target.value});
-                      setJobSearchQuery(e.target.value);
-                      setShowJobDropdown(true);
-                    }} 
-                    onFocus={() => setShowJobDropdown(true)}
-                    className="input-glass w-full" 
-                    placeholder="Search job title..." 
-                    required 
-                  />
-                  {showJobDropdown && jobSearchQuery && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {ethiopianJobCategories.filter(job => job.toLowerCase().includes(jobSearchQuery.toLowerCase())).map((job) => (
-                        <button
-                          key={job}
-                          type="button"
-                          onClick={() => {
-                            setNewJob({...newJob, title: job});
-                            setShowJobDropdown(false);
-                            setJobSearchQuery('');
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-indigo-50"
-                        >
-                          {job}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Company Name</label>
-                  <input type="text" value={newJob.companyName} onChange={(e) => setNewJob({...newJob, companyName: e.target.value})} className="input-glass w-full" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Job Type</label>
-                  <select value={newJob.jobType} onChange={(e) => setNewJob({...newJob, jobType: e.target.value})} className="input-glass w-full">
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contract">Contract</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Gender</label>
-                  <select value={newJob.gender} onChange={(e) => setNewJob({...newJob, gender: e.target.value})} className="input-glass w-full">
-                    <option value="both">Male & Female</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Education Level</label>
-                  <select value={newJob.level} onChange={(e) => setNewJob({...newJob, level: e.target.value})} className="input-glass w-full">
-                    <option value="Not required">Not required</option>
-                    <option value="Above Grade 12">Above Grade 12</option>
-                    <option value="Diploma">Diploma</option>
-                    <option value="Degree">Degree</option>
-                    <option value="Masters">Masters</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                {newJob.level === 'Other' && (
-                  <div>
-                    <input type="text" value={newJob.levelOther} onChange={(e) => setNewJob({...newJob, levelOther: e.target.value})} className="input-glass w-full" placeholder="Specify education level" />
-                  </div>
-                )}
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Country</label>
-                  <input type="text" value={newJob.country} className="input-glass w-full" readOnly />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">State/Region</label>
-                  <select value={newJob.state} onChange={(e) => setNewJob({...newJob, state: e.target.value})} className="input-glass w-full">
-                    <option value="">Select Region</option>
-                    {ethiopianRegions.map((region) => (
-                      <option key={region} value={region}>{region}</option>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+                  <h3 className={`text-lg font-bold ${textPrimary} mb-4`}>Hiring Pipeline</h3>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {applications.map(app => (
+                      <PipelineStage key={app.stage} {...app} />
                     ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">City</label>
-                  <input type="text" value={newJob.city} onChange={(e) => setNewJob({...newJob, city: e.target.value})} className="input-glass w-full" placeholder="City" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Kebele</label>
-                  <input type="text" value={newJob.kebele} onChange={(e) => setNewJob({...newJob, kebele: e.target.value})} className="input-glass w-full" placeholder="Kebele" />
-                </div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Experience Level</label>
-                  <select value={newJob.experience} onChange={(e) => setNewJob({...newJob, experience: e.target.value})} className="input-glass w-full">
-                    <option value="Not Required">Not Required</option>
-                    <option value="Entry Level">Entry Level</option>
-                    <option value="Mid Level">Mid Level</option>
-                    <option value="Senior Level">Senior Level</option>
-                    <option value="Lead">Lead</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                {newJob.experience === 'Other' && (
-                  <div>
-                    <input type="text" value={newJob.experienceOther} onChange={(e) => setNewJob({...newJob, experienceOther: e.target.value})} className="input-glass w-full" placeholder="Specify experience level" />
                   </div>
-                )}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Language Required</label>
-                <div className="grid md:grid-cols-2 gap-2">
-                  {['Afan Oromo', 'English', 'Amharic', 'Tigrigna', 'Somali', 'Other'].map((lang) => (
-                    <label key={lang} className="flex items-center gap-2">
-                      <input 
-                        type="checkbox" 
-                        checked={newJob.language.includes(lang)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewJob({...newJob, language: [...newJob.language, lang]});
-                          } else {
-                            setNewJob({...newJob, language: newJob.language.filter(l => l !== lang)});
-                          }
-                        }}
-                        className="w-4 h-4" 
-                      />
-                      <span className="text-sm">{lang}</span>
-                    </label>
+                <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+                  <h3 className={`text-lg font-bold ${textPrimary} mb-4`}>Recent Messages</h3>
+                  <div className="space-y-3">
+                    {messages.map(msg => (
+                      <motion.div 
+                        key={msg.id}
+                        whileHover={{ scale: 1.02 }}
+                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm`}>
+                          {msg.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className={`font-medium ${textPrimary}`}>{msg.name}</h4>
+                            <span className={`text-xs ${textMuted}`}>{msg.time}</span>
+                          </div>
+                          <p className={`text-sm truncate ${textSecondary}`}>{msg.lastMessage}</p>
+                        </div>
+                        {msg.unread && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-lg font-bold ${textPrimary}`}>Active Jobs</h3>
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/25">
+                      <FiPlus className="w-4 h-4" />Post Job
+                    </motion.button>
+                  </div>
+                  <div className="space-y-3">
+                    {jobs.map(job => <JobCard key={job.id} job={job} />)}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-lg font-bold ${textPrimary}`}>Top Candidates</h3>
+                    <button className={`text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>View All</button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {candidates.slice(0, 4).map(candidate => <CandidateCard key={candidate.id} candidate={candidate} />)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+
+      case 'jobs':
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className={`text-2xl font-bold ${textPrimary}`}>Job Postings</h2>
+                  <p className={`${textSecondary} mt-1`}>Manage your job listings</p>
+                </div>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/25">
+                  <FiPlus className="w-5 h-5" />Create Job
+                </motion.button>
+              </div>
+              <div className="space-y-4">
+                {jobs.map(job => <JobCard key={job.id} job={job} />)}
+              </div>
+            </div>
+          </motion.div>
+        );
+
+      case 'candidates':
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className={`text-2xl font-bold ${textPrimary}`}>Candidates</h2>
+                  <p className={`${textSecondary} mt-1`}>Review and manage applicants</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-100'}`}>
+                    <FiSearch className={`w-4 h-4 ${textMuted}`} />
+                    <input 
+                      type="text" 
+                      placeholder="Search candidates..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`bg-transparent outline-none ${textPrimary} placeholder:${textMuted} w-40`}
+                    />
+                  </div>
+                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-700/50 hover:bg-slate-600' : 'bg-slate-100 hover:bg-slate-200'}`}>
+                    <FiFilterIcon className={`w-5 h-5 ${textSecondary}`} />
+                  </motion.button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {candidates.map(candidate => <CandidateCard key={candidate.id} candidate={candidate} />)}
+              </div>
+            </div>
+          </motion.div>
+        );
+
+      case 'messages':
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className={`text-2xl font-bold ${textPrimary}`}>Messages</h2>
+                  <p className={`${textSecondary} mt-1`}>Communicate with candidates</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-1 space-y-2">
+                  {messages.map(msg => (
+                    <motion.div 
+                      key={msg.id}
+                      whileHover={{ scale: 1.02 }}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${darkMode ? 'bg-slate-700/30 hover:bg-slate-700/50' : 'bg-slate-50 hover:bg-slate-100'}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold`}>
+                        {msg.avatar}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-medium ${textPrimary}`}>{msg.name}</h4>
+                        <p className={`text-sm truncate ${textSecondary}`}>{msg.lastMessage}</p>
+                      </div>
+                      {msg.unread && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                    </motion.div>
+                  ))}
+                </div>
+                <div className="lg:col-span-3">
+                  <div className={`h-[400px] rounded-xl ${darkMode ? 'bg-slate-700/20' : 'bg-slate-50'} flex items-center justify-center`}>
+                    <p className={textSecondary}>Select a conversation to start messaging</p>
+                  </div>
+                  <div className="flex items-center gap-3 mt-4">
+                    <input 
+                      type="text" 
+                      placeholder="Type a message..." 
+                      className={`flex-1 px-4 py-3 rounded-xl border ${borderColor} ${
+                        darkMode 
+                          ? 'bg-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-indigo-500' 
+                          : 'bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                      } focus:ring-2 focus:ring-indigo-500/20 outline-none transition`}
+                    />
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl shadow-lg shadow-indigo-500/25"
+                    >
+                      <FiSend className="w-5 h-5" />
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+
+      case 'analytics':
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+              <div className="mb-6">
+                <h2 className={`text-2xl font-bold ${textPrimary}`}>Analytics</h2>
+                <p className={`${textSecondary} mt-1`}>Track your recruitment performance</p>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Hiring Trends</h3>
+                  <div className={`h-64 rounded-xl ${darkMode ? 'bg-slate-700/30' : 'bg-slate-100'} flex items-end justify-between px-4 pb-4`}>
+                    {statsChart.map((stat, i) => (
+                      <div key={stat.name} className="flex flex-col items-center gap-2">
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: `${stat.hires * 20}px` }}
+                          transition={{ delay: i * 0.1 }}
+                          className="w-8 bg-gradient-to-t from-indigo-500 to-purple-500 rounded-t-lg"
+                        />
+                        <span className={`text-xs ${textMuted}`}>{stat.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {kpiCards.map(kpi => (
+                    <StatCard key={kpi.label} {...kpi} delay={0} />
                   ))}
                 </div>
               </div>
-              {newJob.language.includes('Other') && (
-                <div>
-                  <input type="text" value={newJob.languageOther} onChange={(e) => setNewJob({...newJob, languageOther: e.target.value})} className="input-glass w-full" placeholder="Specify other language" />
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium mb-2">Tech Stack (Skills)</label>
-                <input type="text" value={newJob.skills} onChange={(e) => setNewJob({...newJob, skills: e.target.value})} className="input-glass w-full" placeholder="React, Node.js, Python" />
-              </div>
-              <div>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={newJob.salaryNegotiable} onChange={(e) => setNewJob({...newJob, salaryNegotiable: e.target.checked})} className="w-4 h-4" />
-                  <span className="text-sm">Salary Negotiable</span>
-                </label>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Job Description</label>
-                <textarea value={newJob.description} onChange={(e) => setNewJob({...newJob, description: e.target.value})} className="input-glass w-full h-32" required />
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setShowPostJob(false)} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-brand-gray hover:bg-gray-50 transition">Cancel</button>
-                <button type="submit" className="flex-1 btn-primary">Post Job</button>
-              </div>
-            </form>
+            </div>
           </motion.div>
+        );
+
+      case 'settings':
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
+              <div className="mb-6">
+                <h2 className={`text-2xl font-bold ${textPrimary}`}>Settings</h2>
+                <p className={`${textSecondary} mt-1`}>Manage your preferences</p>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Appearance</h3>
+                  <div className={`flex items-center justify-between p-4 rounded-xl ${darkMode ? 'bg-slate-700/30' : 'bg-slate-100'}`}>
+                    <span className={textPrimary}>Dark Mode</span>
+                    <motion.button 
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setDarkMode(!darkMode)}
+                      className={`w-14 h-8 rounded-full p-1 ${darkMode ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: darkMode ? 24 : 0 }}
+                        className="w-6 h-6 bg-white rounded-full"
+                      />
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className={`min-h-screen ${bgMain} relative overflow-hidden transition-all duration-500`}>
+      <GridPattern />
+      <FloatingParticles />
+      <GradientOrbs />
+
+      <motion.nav 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        className={`fixed top-0 left-0 right-0 z-50 h-16 ${glassEffect} border-b ${borderColor}`}
+      >
+        <div className="flex items-center justify-between h-full px-4 lg:px-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`lg:hidden p-2 rounded-xl ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+            >
+              {mobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
+            </button>
+
+            <motion.div className="flex items-center gap-3">
+              <motion.div whileHover={{ rotate: 360, scale: 1.1 }} transition={{ duration: 0.5 }} className={`w-10 h-10 rounded-xl ${darkMode ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'} flex items-center justify-center`}>
+                <FiShield className="w-5 h-5 text-white" />
+              </motion.div>
+              <AnimatePresence>
+                {!sidebarCollapsed && (
+                  <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className={`text-lg font-bold ${textPrimary} hidden lg:block`}>
+                    Nile Recruit
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+
+          <motion.div className="hidden md:flex flex-1 max-w-md mx-8">
+            <div className={`relative w-full ${glassEffect} rounded-2xl border ${borderColor} overflow-hidden`}>
+              <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 ${textMuted}`} />
+              <input 
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full h-10 pl-12 pr-4 bg-transparent outline-none ${textPrimary} placeholder:${textMuted}`}
+              />
+            </div>
+          </motion.div>
+
+          <div className="flex items-center gap-2">
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setDarkMode(!darkMode)}
+              className={`p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
+            >
+              {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
+            </motion.button>
+
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`relative p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+            >
+              <FiBell className={`w-5 h-5 ${textSecondary}`} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+            </motion.button>
+
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowProfile(!showProfile)}
+              className={`flex items-center gap-2 p-1.5 pr-3 rounded-xl ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+            >
+              <div className={`w-8 h-8 rounded-xl ${darkMode ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'} flex items-center justify-center`}>
+                <span className="text-sm font-semibold text-white">RC</span>
+              </div>
+              <span className={`text-sm font-medium ${textPrimary} hidden lg:block`}>Recruiter</span>
+            </motion.button>
+          </div>
         </div>
-      )}
+      </motion.nav>
+
+      <div className="fixed top-16 left-0 right-0 h-px z-40">
+        <motion.div 
+          className="h-full bg-gradient-to-r from-indigo-500 via-cyan-500 to-purple-500"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+        />
+      </div>
+
+      <motion.aside 
+        initial={{ x: -100 }}
+        animate={{ x: 0 }}
+        className={`fixed left-0 top-16 bottom-0 z-30 ${sidebarWidth} ${bgSidebar} border-r ${borderColor} transition-all duration-300 hidden lg:flex flex-col overflow-hidden`}
+      >
+        {darkMode && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/5 to-transparent" />
+            <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-purple-500/5 to-transparent" />
+            <motion.div 
+              className="absolute left-4 top-1/4 w-8 h-8 rounded-full bg-indigo-500/20 blur-xl"
+              animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            />
+            <motion.div 
+              className="absolute right-2 bottom-1/3 w-12 h-12 rounded-full bg-purple-500/15 blur-2xl"
+              animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+              transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+            />
+          </div>
+        )}
+        <div className="flex-1 p-3 overflow-y-auto relative z-10">
+          <nav className="space-y-1">
+            {tabs.map((tab, index) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <motion.button
+                  key={tab.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => setActiveTab(tab.id)}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+                    isActive
+                      ? darkMode 
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25' 
+                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/20'
+                      : darkMode 
+                        ? 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                  </motion.div>
+                  <AnimatePresence>
+                    {!sidebarCollapsed && (
+                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm font-medium">
+                        {tab.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className={`p-3 ${borderColor} border-t relative z-10`}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'} transition`}
+          >
+            {sidebarCollapsed ? <FiChevronRight className="w-5 h-5" /> : <FiChevronLeft className="w-5 h-5" />}
+            {!sidebarCollapsed && <span className="text-sm">Collapse</span>}
+          </motion.button>
+        </div>
+      </motion.aside>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/50 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <motion.aside
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: 'spring', damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`absolute left-0 top-0 bottom-0 w-72 ${bgSidebar} border-r ${borderColor}`}
+            >
+              <div className="flex-1 p-4 overflow-y-auto h-full">
+                <nav className="space-y-1">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <motion.button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                          isActive
+                            ? darkMode ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
+                            : darkMode ? 'text-slate-400 hover:bg-slate-700/50' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="text-sm font-medium">{tab.label}</span>
+                      </motion.button>
+                    );
+                  })}
+                </nav>
+              </div>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.main 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        className="pt-16 lg:pl-64 transition-all duration-300"
+      >
+        <div className="p-4 lg:p-6 relative z-10">
+          <div className="max-w-7xl mx-auto">
+            {renderContent()}
+          </div>
+        </div>
+      </motion.main>
     </div>
   );
-}
+};
+
+export default RecruiterDashboard;

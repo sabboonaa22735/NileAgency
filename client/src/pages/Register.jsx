@@ -1,136 +1,270 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiArrowRight, FiBriefcase, FiLock, FiMail, FiUser, FiArrowLeft, FiCheck, FiEye, FiEyeOff, FiZap, FiShield } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 import { authApi } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import AuthShell from '../components/ui/AuthShell';
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [intent, setIntent] = useState('employee');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const handleGoogleRegister = () => {
+    window.location.href = 'http://localhost:5000/api/auth/google';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-    
+
     setLoading(true);
+
     try {
-      const { data } = await authApi.register({ email, password });
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      await authApi.register({ email, password });
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     }
+
     setLoading(false);
   };
 
+  const getPasswordStrength = () => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    let strength = 0;
+    if (password.length >= 6) strength += 25;
+    if (password.length >= 10) strength += 25;
+    if (/[A-Z]/.test(password)) strength += 25;
+    if (/[0-9]/.test(password)) strength += 25;
+    
+    const labels = ['Weak', 'Fair', 'Good', 'Strong'];
+    const colors = ['#ef4444', '#f59e0b', '#22c55e', '#10b981'];
+    return { strength, label: labels[Math.min(Math.floor(strength / 25), 3)], color: colors[Math.min(Math.floor(strength / 25), 3)] };
+  };
+
+  const passwordStrength = getPasswordStrength();
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-20">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30" />
-      <div className="absolute top-1/3 -left-20 w-80 h-80 bg-brand-indigo/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/3 -right-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
-      
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md relative"
-      >
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-brand-indigo flex items-center justify-center">
-              <span className="text-white font-bold text-xl">N</span>
-            </div>
-          </Link>
-          <h1 className="text-3xl font-bold text-brand-dark mb-2">Create Account</h1>
-          <p className="text-brand-gray">Join thousands of professionals today</p>
-        </div>
+    <AuthShell
+      badge="Create your space"
+      title="Create a new account"
+      subtitle="Join the platform with a more premium, polished first impression."
+      sideTitle="Beautiful onboarding that feels intentional from the first click."
+      sideBody="We're pairing cleaner forms with dramatic depth, ambient lighting, and motion that makes the product feel alive without slowing it down."
+      sideStats={[
+        { value: '2', label: 'Primary user paths' },
+        { value: '3D', label: 'Motion-rich surfaces' },
+        { value: 'Fast', label: 'Low-friction setup' }
+      ]}
+    >
+      <div className="theme-toggle-wrapper flex justify-end mb-4">
+        <motion.button
+          onClick={toggleTheme}
+          className="theme-btn"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <span className="theme-icon-text">{isDark ? '☀️' : '🌙'}</span>
+        </motion.button>
+      </div>
 
-        <div className="glass rounded-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-2">Email</label>
-              <div className="relative">
-                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-gray" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-glass w-full pl-12"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-2">Password</label>
-              <div className="relative">
-                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-gray" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-glass w-full pl-12"
-                  placeholder="Create a password"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-2">Confirm Password</label>
-              <div className="relative">
-                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-gray" />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="input-glass w-full pl-12"
-                  placeholder="Confirm your password"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              className="error-banner"
             >
-              {loading ? 'Creating account...' : 'Create Account'} <FiArrowRight />
-            </button>
-          </form>
+              <span>{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <div className="mt-6 text-center">
-            <p className="text-brand-gray">
-              Already have an account?{' '}
-              <Link to="/login" className="text-brand-indigo font-medium">
-                Sign In
-              </Link>
-            </p>
+        <div className="input-group">
+          <label className="input-label">I want to</label>
+          <div className="grid grid-cols-2 gap-3">
+            <motion.button
+              type="button"
+              onClick={() => setIntent('employee')}
+              className={`role-card ${intent === 'employee' ? 'active' : ''}`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="icon-wrapper">
+                <FiUser className="h-5 w-5 text-cyan-300" />
+              </div>
+              <div className="role-title">Find Jobs</div>
+              <div className="role-desc">Apply and build your profile</div>
+            </motion.button>
+            <motion.button
+              type="button"
+              onClick={() => setIntent('recruiter')}
+              className={`role-card ${intent === 'recruiter' ? 'active' : ''}`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="icon-wrapper">
+                <FiBriefcase className="h-5 w-5 text-purple-300" />
+              </div>
+              <div className="role-title">Hire Talent</div>
+              <div className="role-desc">Post jobs and manage applicants</div>
+            </motion.button>
           </div>
         </div>
-      </motion.div>
-    </div>
+
+        <div className="input-group">
+          <label className="input-label">Email</label>
+          <div className="input-wrapper">
+            <div className="input-icon">
+              <FiMail />
+            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="input-field"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label className="input-label">Password</label>
+          <div className="input-wrapper">
+            <div className="input-icon">
+              <FiLock />
+            </div>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              className="input-field pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="password-toggle"
+            >
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
+          {password && (
+            <div className="password-strength">
+              <div className="strength-bar">
+                <motion.div
+                  className="strength-fill"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${passwordStrength.strength}%` }}
+                  style={{ backgroundColor: passwordStrength.color }}
+                />
+              </div>
+              <span className="strength-label" style={{ color: passwordStrength.color }}>
+                {passwordStrength.label}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="input-group">
+          <label className="input-label">Confirm Password</label>
+          <div className="input-wrapper">
+            <div className="input-icon">
+              <FiLock />
+            </div>
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repeat your password"
+              className="input-field pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="password-toggle"
+            >
+              {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
+          {confirmPassword && password === confirmPassword && (
+            <div className="password-match">
+              <FiCheck className="match-icon" /> Passwords match
+            </div>
+          )}
+        </div>
+
+        <p className="terms-text">
+          By continuing, you agree to the platform{' '}
+          <Link to="/terms" className="terms-link">terms</Link> and{' '}
+          <Link to="/privacy" className="terms-link">privacy policy</Link>.
+        </p>
+
+        <motion.button
+          type="submit"
+          disabled={loading}
+          className="submit-btn btn-3d-press ripple-effect w-full"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {loading ? (
+            <span className="loading-spinner"></span>
+          ) : (
+            <>
+              <span>Create Account</span>
+              <FiArrowRight className="btn-icon" />
+            </>
+          )}
+        </motion.button>
+
+        <div className="divider">
+          <span>or continue with</span>
+        </div>
+
+        <motion.button
+          type="button"
+          onClick={handleGoogleRegister}
+          className="google-btn"
+          whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.12)' }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <FcGoogle className="google-icon" />
+          <span>Sign up with Google</span>
+        </motion.button>
+      </form>
+
+      <p className="signup-prompt">
+        Already have an account?{' '}
+        <Link to="/login" className="signup-link">
+          Sign in
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

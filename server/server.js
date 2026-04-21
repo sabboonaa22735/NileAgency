@@ -34,6 +34,7 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 const io = new Server(server, {
   cors: {

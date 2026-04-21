@@ -66,7 +66,14 @@ export const usersApi = {
   getEmployee: (id) => api.get(`/users/employee/${id}`),
   getRecruiter: (id) => api.get(`/users/recruiter/${id}`),
   bookmarkJob: (jobId) => api.post(`/users/bookmark/${jobId}`),
-  removeBookmark: (jobId) => api.delete(`/users/bookmark/${jobId}`)
+  removeBookmark: (jobId) => api.delete(`/users/bookmark/${jobId}`),
+  getSavedJobs: () => api.get('/users/saved-jobs'),
+  getProfileViews: () => api.get('/users/profile-views')
+};
+
+export const dashboardApi = {
+  getEmployeeStats: () => api.get('/dashboard/employee/stats'),
+  getEmployeeDashboard: () => api.get('/dashboard/employee')
 };
 
 export const applicationsApi = {
