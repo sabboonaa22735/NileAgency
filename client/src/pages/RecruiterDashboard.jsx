@@ -705,14 +705,14 @@ const RecruiterDashboard = () => {
           </motion.div>
 
           <div className="flex items-center gap-2">
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <button 
+              type="button"
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+              className={darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'}
             >
               {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
-            </motion.button>
+            </button>
 
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -724,21 +724,17 @@ const RecruiterDashboard = () => {
               <FiRefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </motion.button>
 
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+            <button 
+              type="button"
+              onClick={() => { console.log('Notification clicked'); setShowNotifications(!showNotifications); }}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}
+              className={darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}
             >
               <FiBell className={`w-5 h-5 ${textSecondary}`} />
               {notifications.filter(n => !n.read).length > 0 && (
-                <motion.span 
-                  animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/40"
-                />
+                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
               )}
-            </motion.button>
+            </button>
 
             <motion.button 
               whileHover={{ scale: 1.05 }}

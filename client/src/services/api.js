@@ -148,7 +148,11 @@ export const adminApi = {
   getChatUsers: () => api.get('/chat/admin/users'),
   getChatConversations: () => api.get('/chat/conversations'),
   getChatMessages: (partnerId) => api.get(`/chat/${partnerId}`),
-  sendChatMessage: (data) => api.post('/chat', data)
+  sendChatMessage: (data) => api.post('/chat', data),
+  getPaymentSettings: () => api.get('/admin/payment-settings'),
+  createPaymentSetting: (data) => api.post('/admin/payment-settings', data),
+  updatePaymentSetting: (key, data) => api.post('/admin/payment-settings', { key, ...data }),
+  deletePaymentSetting: (key) => api.delete(`/admin/payment-settings/${key}`)
 };
 
 export default api;

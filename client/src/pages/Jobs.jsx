@@ -219,8 +219,8 @@ export default function Jobs() {
                       {job.salary && (
                         <span className="flex items-center gap-1">
                           <FiDollarSign className="w-4 h-4" />
-                          {typeof job.salary === 'object' 
-                            ? `$${job.salary.min} - $${job.salary.max}` 
+{typeof job.salary === 'object' 
+                            ? `ETB ${job.salary.min.toLocaleString()} - ETB ${job.salary.max.toLocaleString()}` 
                             : job.salary}
                         </span>
                       )}

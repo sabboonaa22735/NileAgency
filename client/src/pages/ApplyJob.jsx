@@ -70,10 +70,19 @@ export default function ApplyJob() {
     }
   };
 
+  const isResumeRequired = () => {
+    if (!job?.educationLevel) return false;
+    const eduLevel = job.educationLevel?.toLowerCase() || '';
+    const aboveDiplomaLevels = ['phd', 'doctorate', 'masters', 'master', 'degree', 'bachelor'];
+    return aboveDiplomaLevels.some(level => eduLevel.includes(level));
+  };
+
+  const resumeRequired = isResumeRequired();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.resume) {
-      alert('Please upload your CV/Resume');
+    if (resumeRequired && !formData.resume) {
+      alert('Please upload your CV/Resume - it is required for this job position');
       return;
     }
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.city) {
@@ -225,7 +234,7 @@ export default function ApplyJob() {
 
             <div>
               <label className="block text-sm font-medium text-brand-dark mb-2">
-                CV/Resume <span className="text-red-500">*</span>
+                CV/Resume {resumeRequired ? <span className="text-red-500">*</span> : <span className="text-gray-400 text-xs">(Optional for this position)</span>}
               </label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-brand-indigo transition">
                 <input
@@ -264,7 +273,7 @@ export default function ApplyJob() {
 
             <button
               type="submit"
-              disabled={submitting || !formData.resume}
+              disabled={submitting || (resumeRequired && !formData.resume)}
               className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Submitting...' : 'Submit Application'}

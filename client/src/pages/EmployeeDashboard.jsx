@@ -104,7 +104,7 @@ export default function EmployeeDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -379,14 +379,14 @@ export default function EmployeeDashboard() {
           </motion.div>
 
           <div className="flex items-center gap-2">
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <button 
+              type="button"
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}
+              className={darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'}
             >
               {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
-            </motion.button>
+            </button>
 
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -398,21 +398,17 @@ export default function EmployeeDashboard() {
               <FiRefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </motion.button>
 
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+            <button 
+              type="button"
+              onClick={() => { console.log('Notification clicked', showNotifications); setShowNotifications(!showNotifications); }}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}
+              className={darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}
             >
               <FiBell className={`w-5 h-5 ${textSecondary}`} />
               {notifications.filter(n => !n.read).length > 0 && (
-                <motion.span 
-                  animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/40"
-                />
+                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
               )}
-            </motion.button>
+            </button>
 
             <motion.button 
               whileHover={{ scale: 1.05 }}
@@ -444,39 +440,19 @@ export default function EmployeeDashboard() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`absolute right-4 top-14 w-80 ${glassEffect} rounded-2xl overflow-hidden z-[60] shadow-2xl`}
+            style={{ position: 'fixed', right: 20, top: 70, zIndex: 9999, width: 320, background: darkMode ? '#1e293b' : '#ffffff', borderRadius: 16, padding: 16, boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}
           >
-            <div className={`p-4 border-b ${borderColor}`}>
-              <h3 className={`font-semibold ${textPrimary}`}>Notifications</h3>
+            <div style={{ borderBottom: '1px solid #334155', paddingBottom: 12, marginBottom: 12 }}>
+              <h3 style={{ fontWeight: 600, color: darkMode ? '#f1f5f9' : '#0f172a' }}>Notifications</h3>
             </div>
-            <div className="max-h-80 overflow-y-auto">
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
               {notificationsLoading ? (
-                <div className="p-4 text-center text-slate-500 text-sm">Loading...</div>
+                <div style={{ color: '#94a3b8', textAlign: 'center' }}>Loading...</div>
               ) : notifications.length === 0 ? (
-                <div className="p-4 text-center text-slate-500 text-sm">No notifications</div>
-              ) : notifications.map((notif) => (
-                <div key={notif._id || notif.id} className={`p-3 hover:bg-slate-700/30 transition-colors cursor-pointer ${darkMode ? '' : 'hover:bg-slate-50'}`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      notif.type === 'application' ? darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600' :
-                      notif.type === 'interview' ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600' :
-                      notif.type === 'job' || notif.type === 'job_match' ? darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600' :
-                      notif.type === 'message' ? darkMode ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-600' :
-                      notif.type === 'profile_view' ? darkMode ? 'bg-pink-500/20 text-pink-400' : 'bg-pink-100 text-pink-600' :
-                      darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-600'
-                    }`}>
-                      {notif.type === 'application' ? <FiFileText className="w-4 h-4" /> :
-                       notif.type === 'interview' ? <FiCalendar className="w-4 h-4" /> :
-                       notif.type === 'job' || notif.type === 'job_match' ? <FiBriefcase className="w-4 h-4" /> :
-                       notif.type === 'message' ? <FiMessageSquare className="w-4 h-4" /> :
-                       notif.type === 'profile_view' ? <FiEye className="w-4 h-4" /> :
-                       <FiBell className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${textPrimary} truncate`}>{notif.message || notif.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{getTimeAgo(notif.createdAt || notif.timestamp)}</p>
-                    </div>
-                  </div>
+                <div style={{ color: '#94a3b8', textAlign: 'center' }}>No notifications</div>
+              ) : notifications.slice(0, 5).map((notif) => (
+                <div key={notif._id || notif.id} style={{ padding: '8px 0', borderBottom: '1px solid #334155' }}>
+                  <p style={{ color: darkMode ? '#e2e8f0' : '#1e293b', fontSize: 14 }}>{notif.message || notif.title}</p>
                 </div>
               ))}
             </div>
@@ -782,7 +758,7 @@ const DashboardTab = ({ darkMode, jobs = [], applications = [], stats, loading }
                       <h3 className={`font-semibold ${textPrimary} mb-1`}>{job.title}</h3>
                       <p className="text-sm text-slate-500">{job.recruiterId?.companyName || job.company || 'Company'} - {job.location || 'Remote'}</p>
                     </div>
-                    <span className="text-sm font-medium text-indigo-400">{job.salary?.min && job.salary?.max ? `$${job.salary.min.toLocaleString()}-$${job.salary.max.toLocaleString()}` : typeof job.salary === 'string' ? job.salary : 'Competitive'}</span>
+                    <span className="text-sm font-medium text-indigo-400">{job.salary?.min && job.salary?.max ? `ETB ${job.salary.min.toLocaleString()}-${job.salary.max.toLocaleString()}` : typeof job.salary === 'string' ? job.salary : 'Competitive'}</span>
                   </div>
                 </motion.div>
               ))}
@@ -860,7 +836,7 @@ const JobsTab = ({ darkMode, jobs = [], setJobs }) => {
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400 mb-3">
                   <span className="flex items-center gap-1"><FiMapPin className="w-4 h-4" />{job.location || 'Remote'}</span>
-                  <span className="flex items-center gap-1"><FiDollarSign className="w-4 h-4" />{job.salary?.min && job.salary?.max ? `$${job.salary.min.toLocaleString()}-$${job.salary.max.toLocaleString()}` : typeof job.salary === 'string' ? job.salary : 'Competitive'}</span>
+                  <span className="flex items-center gap-1"><FiDollarSign className="w-4 h-4" />{job.salary?.min && job.salary?.max ? `ETB ${job.salary.min.toLocaleString()}-${job.salary.max.toLocaleString()}` : typeof job.salary === 'string' ? job.salary : 'Competitive'}</span>
                   <span className="flex items-center gap-1"><FiClock className="w-4 h-4" />{job.posted}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

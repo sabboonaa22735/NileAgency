@@ -284,7 +284,7 @@ const STEPS = [
   { id: 3, title: 'Payment', icon: FiCreditCard }
 ];
 
-const APPLICATION_FEE = 100;
+const APPLICATION_FEE = 10000;
 
 const INDUSTRIES = [
   { value: '', label: 'Select Industry' },
@@ -302,10 +302,12 @@ export default function RecruiterRegistration() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [paymentSettings, setPaymentSettings] = useState([]);
+  const [telebirrSettings, setTelebirrSettings] = useState({});
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
-    companyName: '', industry: '', numberOfEmployees: '', companyDescription: '',
+    companyName: '', industry: '', industryOther: '', numberOfEmployees: '', companyDescription: '',
     website: '', foundedYear: '',
     managerName: '', city: '', kebele: '',
     contactEmail: '', contactPhone: '',
@@ -317,6 +319,24 @@ export default function RecruiterRegistration() {
   const companyLogoRef = useRef(null);
   const taxDocumentRef = useRef(null);
   const paymentProofRef = useRef(null);
+
+  useEffect(() => { loadPaymentSettings(); }, []);
+
+  const loadPaymentSettings = async () => {
+    try {
+      const payRes = await fetch('/api/admin/public-payment-settings');
+      if (payRes.ok) {
+        const data = await payRes.json();
+        setPaymentSettings(data);
+        const telebirrData = data.filter(s => s.category === 'telebirr');
+        if (telebirrData.length > 0) {
+          const telebirrObj = {};
+          telebirrData.forEach(s => { telebirrObj[s.key] = s.value; });
+          setTelebirrSettings(telebirrObj);
+        }
+      }
+    } catch (err) { console.error('Error loading payment settings:', err); }
+  };
 
   const colors = darkMode ? {
     bg: 'bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950',
@@ -350,8 +370,13 @@ export default function RecruiterRegistration() {
           setLoading(false);
           return;
         }
+        if (formData.industry === 'other' && !formData.industryOther) {
+          setError('Please specify your industry');
+          setLoading(false);
+          return;
+        }
         const data = {
-          companyName: formData.companyName, industry: formData.industry, numberOfEmployees: formData.numberOfEmployees,
+          companyName: formData.companyName, industry: formData.industry === 'other' ? formData.industryOther : formData.industry, numberOfEmployees: formData.numberOfEmployees,
           companyDescription: formData.companyDescription, website: formData.website,
           foundedYear: formData.foundedYear, managerName: formData.managerName, city: formData.city, kebele: formData.kebele,
           contactEmail: formData.contactEmail, contactPhone: formData.contactPhone
@@ -473,6 +498,10 @@ export default function RecruiterRegistration() {
                   <InputField label="Founded Year" name="foundedYear" value={formData.foundedYear} onChange={handleChange} placeholder="e.g., 2015" isDark={darkMode} icon={FiCalendar} />
                 </div>
                 
+                {formData.industry === 'other' && (
+                  <InputField label="Please Specify Industry" name="industryOther" value={formData.industryOther} onChange={handleChange} placeholder="Enter industry name" required isDark={darkMode} icon={FiBriefcase} />
+                )}
+                
                 <InputField label="Company Website" name="website" value={formData.website} onChange={handleChange} placeholder="https://example.com (optional)" isDark={darkMode} icon={FiGlobe} />
                 
                 <div className={`border-t pt-6 mt-6 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -526,7 +555,7 @@ export default function RecruiterRegistration() {
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 opacity-90" />
                   <div className="relative">
                     <p className="text-white/80 mb-1">Application Fee</p>
-                    <p className="text-5xl font-bold text-white">${APPLICATION_FEE}</p>
+                    <p className="text-5xl font-bold text-white">{APPLICATION_FEE.toLocaleString()} ETB</p>
                   </div>
                 </motion.div>
 
@@ -534,7 +563,7 @@ export default function RecruiterRegistration() {
                   <h3 className={`text-lg font-medium mb-4 ${colors.text.secondary}`}>Select Payment Method</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <PaymentCard method="bank" icon={FiFile} title="Bank Transfer" subtitle="Pay via bank account" isSelected={formData.paymentMethod === 'bank'} onClick={() => handlePaymentMethodSelect('bank')} isDark={darkMode} />
-                    <PaymentCard method="chapa" icon={FiCreditCard} title="Chapa" subtitle="Pay with Chapa" isSelected={formData.paymentMethod === 'chapa'} onClick={() => handlePaymentMethodSelect('chapa')} isDark={darkMode} />
+                    <PaymentCard method="telebirr" icon={FiPhone} title="Telebirr" subtitle="Pay via Telebirr" isSelected={formData.paymentMethod === 'telebirr'} onClick={() => handlePaymentMethodSelect('telebirr')} isDark={darkMode} />
                   </div>
                 </div>
 
@@ -542,17 +571,27 @@ export default function RecruiterRegistration() {
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-5 rounded-2xl ${darkMode ? 'bg-violet-500/10 border border-violet-500/20' : 'bg-violet-50 border border-violet-200'}`}>
                     <h4 className={`font-semibold mb-3 ${darkMode ? 'text-violet-300' : 'text-violet-800'}`}>Bank Transfer Details</h4>
                     <div className={`text-sm space-y-1 ${darkMode ? 'text-violet-200' : 'text-violet-700'}`}>
-                      <p><strong>Bank Name:</strong> Commercial Bank of Ethiopia</p>
-                      <p><strong>Account Name:</strong> Nile Agency</p>
-                      <p><strong>Account Number:</strong> 1000123456789</p>
+                      {paymentSettings.filter(s => s.category === 'bank').map(s => (
+                        <p key={s.key}><strong>{s.label}:</strong> {s.value}</p>
+                      ))}
                     </div>
                   </motion.div>
                 )}
 
-                {formData.paymentMethod === 'chapa' && (
+                {formData.paymentMethod === 'telebirr' && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-5 rounded-2xl ${darkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
-                    <h4 className={`font-semibold mb-2 ${darkMode ? 'text-green-300' : 'text-green-800'}`}>Chapa Payment</h4>
-                    <p className={`text-sm ${darkMode ? 'text-green-200' : 'text-green-700'}`}>You will be redirected to Chapa after clicking Submit.</p>
+                    <h4 className={`font-semibold mb-3 ${darkMode ? 'text-green-300' : 'text-green-800'}`}>Telebirr Payment</h4>
+                    <div className={`text-sm space-y-2 ${darkMode ? 'text-green-200' : 'text-green-700'}`}>
+                      {telebirrSettings.telebirr_fullname && (
+                        <p><strong>Full Name:</strong> {telebirrSettings.telebirr_fullname}</p>
+                      )}
+                      {telebirrSettings.telebirr_phone && (
+                        <p><strong>Phone Number:</strong> {telebirrSettings.telebirr_phone}</p>
+                      )}
+                      {telebirrSettings.telebirr_instructions && (
+                        <p className="mt-2"><strong>Instructions:</strong> {telebirrSettings.telebirr_instructions}</p>
+                      )}
+                    </div>
                   </motion.div>
                 )}
 

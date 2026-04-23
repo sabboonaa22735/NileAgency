@@ -27,8 +27,9 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({
     email: '', password: '', role: 'employee', firstName: '', lastName: '',
     phone: '', address: '', bio: '', skills: '', companyName: '', industry: '',
-    companySize: '', location: '', contactPerson: '', photo: '', resume: '',
-    idCard: '', certificate: '', companyLogo: '', businessLicense: '', taxDocument: ''
+    numberOfEmployees: '', website: '', foundedYear: '', managerName: '', city: '', kebele: '',
+    contactEmail: '', contactPhone: '', photo: '', resume: '',
+    idCard: '', certificate: '', companyLogo: '', businessLicense: '', taxDocument: '', paymentProof: ''
   });
   const [jobFormData, setJobFormData] = useState({
     title: '', description: '', requirements: '', skills: '', location: '',
@@ -44,11 +45,15 @@ export default function AdminDashboard() {
   const ethiopianRegions = ['Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa', 'Gambela', 'Harari', 'Oromia', 'Sidama', 'Somali', 'South West Ethiopia Peoples\' Region', 'Tigray', 'Wolaita', 'Other'];
   const ethiopianJobCategories = ['Accountant', 'Administrative Assistant', 'Architect', 'Banker', 'Business Analyst', 'Cashier', 'Chef', 'Civil Engineer', 'Clinical Officer', 'Computer Operator', 'Construction Worker', 'Consultant', 'Content Writer', 'Customer Service', 'Data Analyst', 'Data Entry Clerk', 'Database Administrator', 'Dental Surgeon', 'Designer', 'Doctor', 'Driver', 'Economist', 'Education Teacher', 'Electrical Engineer', 'Electrician', 'Engineer', 'Finance Manager', 'Financial Analyst', 'General Practitioner', 'Graphic Designer', 'HR Manager', 'HR Officer', 'IT Specialist', 'Journalist', 'Lab Technician', 'Lawyer', 'Librarian', 'Logistics Officer', 'Machine Operator', 'Marketing Manager', 'Marketing Officer', 'Mechanical Engineer', 'Medical Doctor', 'Nurse', 'Office Assistant', 'Pharmacist', 'Physical Therapist', 'Pilot', 'Plumber', 'Procurement Officer', 'Project Manager', 'Psychologist', 'Public Relations Officer', 'Quality Assurance', 'Receptionist', 'Researcher', 'Sales Manager', 'Sales Representative', 'Secretary', 'Security Guard', 'Social Worker', 'Software Developer', 'Statistician', 'Stock Clerk', 'Surveyor', 'Teacher', 'Technician', 'Telecommunications Engineer', 'Tour Guide', 'Training Officer', 'Translator', 'Transport Manager', 'Veterinarian', 'Video Editor', 'Warehouse Manager', 'Web Developer', 'Other'];
   const filteredJobCategories = ethiopianJobCategories.filter(job => job.toLowerCase().includes(jobSearchQuery.toLowerCase()));
-  const [chatUsers, setChatUsers] = useState([]);
+const [chatUsers, setChatUsers] = useState([]);
   const [conversations, setConversations] = useState({});
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
   const [selectedChatUser, setSelectedChatUser] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [paymentSettings, setPaymentSettings] = useState([]);
+  const [showPaymentSettingModal, setShowPaymentSettingModal] = useState(false);
+  const [editingPaymentSetting, setEditingPaymentSetting] = useState(null);
+  const [paymentFormData, setPaymentFormData] = useState({ key: '', value: '', type: 'text', label: '', category: 'bank' });
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [applicantProfile, setApplicantProfile] = useState(null);
   const [applicationLoading, setApplicationLoading] = useState(false);
@@ -97,18 +102,52 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [statsRes, usersRes, jobsRes, paymentsRes, appsRes, approvalsRes] = await Promise.all([
+      const [statsRes, usersRes, jobsRes, paymentsRes, appsRes, approvalsRes, paySettingsRes] = await Promise.all([
         adminApi.getDashboard(), adminApi.getUsers(), adminApi.getJobs(),
-        adminApi.getPayments(), adminApi.getApplications(), adminApi.getPendingApprovals()
+        adminApi.getPayments(), adminApi.getApplications(), adminApi.getPendingApprovals(), adminApi.getPaymentSettings()
       ]);
       setStats(statsRes.data); setUsers(usersRes.data); setJobs(jobsRes.data);
       setPayments(paymentsRes.data); setApplications(appsRes.data); setPendingApprovals(approvalsRes.data);
+      setPaymentSettings(paySettingsRes.data);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
 
+  const handleSavePaymentSetting = async (e) => {
+    e.preventDefault();
+    try {
+      await adminApi.updatePaymentSetting(paymentFormData.key, paymentFormData);
+      await loadData();
+      setShowPaymentSettingModal(false);
+      setPaymentFormData({ key: '', value: '', type: 'text', label: '', category: 'bank' });
+    } catch (err) { alert(err.response?.data?.message || 'Failed to save'); }
+  };
+
+  const handleDeletePaymentSetting = async (key) => {
+    if (!confirm('Delete this payment setting?')) return;
+    try { await adminApi.deletePaymentSetting(key); await loadData(); } catch (err) { alert('Failed to delete'); }
+  };
+
+  const openPaymentSettingModal = (setting = null) => {
+    if (setting) {
+      setPaymentFormData({ key: setting.key, value: setting.value, type: setting.type, label: setting.label, category: setting.category });
+    } else {
+      setPaymentFormData({ key: '', value: '', type: 'text', label: '', category: 'bank' });
+    }
+    setShowPaymentSettingModal(true);
+  };
+
   const handleApprove = async (userId) => {
-    try { await adminApi.approveUser(userId); loadData(); } catch (err) { console.error(err); }
+    console.log('Approving user:', userId);
+    try { 
+      const { data } = await adminApi.approveUser(userId);
+      console.log('Approved:', data);
+      alert('User approved successfully!');
+      loadData(); 
+    } catch (err) { 
+      console.error('Approve error:', err);
+      alert(err.response?.data?.message || 'Failed to approve user');
+    }
   };
   const handleReject = async (userId) => {
     if (!confirm('Are you sure you want to reject this user?')) return;
@@ -143,7 +182,7 @@ export default function AdminDashboard() {
   const handleBackToApplications = () => { setSelectedApplication(null); setApplicantProfile(null); };
 
   const resetForm = () => {
-    setFormData({ email: '', password: '', role: 'employee', firstName: '', lastName: '', phone: '', address: '', bio: '', skills: '', companyName: '', industry: '', companySize: '', location: '', contactPerson: '', photo: '', resume: '', idCard: '', certificate: '', companyLogo: '', businessLicense: '', taxDocument: '' });
+    setFormData({ email: '', password: '', role: 'employee', firstName: '', lastName: '', phone: '', address: '', bio: '', skills: '', companyName: '', industry: '', numberOfEmployees: '', website: '', foundedYear: '', managerName: '', city: '', kebele: '', contactEmail: '', contactPhone: '', photo: '', resume: '', idCard: '', certificate: '', companyLogo: '', businessLicense: '', taxDocument: '', paymentProof: '' });
   };
   const handleOpenAddModal = () => { resetForm(); setShowAddUserModal(true); };
   const handleOpenEditModal = async (userId) => {
@@ -156,11 +195,13 @@ export default function AdminDashboard() {
         phone: data.profile?.phone || '', address: data.profile?.address || '',
         bio: data.profile?.bio || '', skills: Array.isArray(data.profile?.skills) ? data.profile.skills.join(', ') : '',
         companyName: data.profile?.companyName || '', industry: data.profile?.industry || '',
-        companySize: data.profile?.companySize || '', location: data.profile?.location || '',
-        contactPerson: data.profile?.contactPerson || '', photo: data.profile?.photo || '',
-        resume: data.profile?.resume || '', idCard: data.profile?.idCard || '',
-        certificate: data.profile?.certificate || '', companyLogo: data.profile?.companyLogo || '',
-        businessLicense: data.profile?.businessLicense || '', taxDocument: data.profile?.taxDocument || ''
+        numberOfEmployees: data.profile?.numberOfEmployees || '', website: data.profile?.website || '', foundedYear: data.profile?.foundedYear || '',
+        managerName: data.profile?.managerName || '', city: data.profile?.city || '', kebele: data.profile?.kebele || '',
+        contactEmail: data.profile?.contactEmail || '', contactPhone: data.profile?.contactPhone || '',
+        photo: data.profile?.photo || '', resume: data.profile?.resume || '',
+        idCard: data.profile?.idCard || '', certificate: data.profile?.certificate || '',
+        companyLogo: data.profile?.companyLogo || '', businessLicense: data.profile?.businessLicense || '',
+        taxDocument: data.profile?.taxDocument || '', paymentProof: data.profile?.paymentProof || ''
       });
       setShowEditUserModal(true);
     } catch (err) { console.error(err); }
@@ -441,106 +482,90 @@ export default function AdminDashboard() {
     </motion.div>
   );
 
-  const renderPaymentsTab = () => (
+const renderPaymentsTab = () => (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="mb-6">
-        <h2 className={`text-2xl font-bold ${textPrimary}`}>Payments</h2>
-        <p className={`${textSecondary} mt-1`}>Track all payment transactions.</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className={`text-2xl font-bold ${textPrimary}`}>Payment Settings</h2>
+          <p className={`${textSecondary} mt-1`}>Manage payment information, bank details and fees.</p>
+        </div>
+        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => openPaymentSettingModal()} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-lg shadow-indigo-500/25">
+          <FiPlus className="w-4 h-4" />Add Setting
+        </motion.button>
       </div>
-      {payments.length === 0 ? (
-        <div className={`rounded-2xl border ${borderColor} ${bgCard} p-12 text-center`}>
-          <FiDollarSign className={`w-12 h-12 mx-auto mb-4 ${textMuted}`} />
-          <p className={`${textSecondary}`}>No payments yet</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {payments.map((payment, index) => (
-            <motion.div key={payment._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className={`rounded-2xl border ${borderColor} ${bgCard} p-5`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className={`text-2xl font-bold ${textPrimary}`}>${payment.amount}</h3>
-                  <p className={`text-sm ${textSecondary}`}>{payment.type}</p>
+      
+      <div className="grid gap-4">
+        {['bank', 'payment', 'general', 'telebirr'].map(cat => (
+          <div key={cat} className={`rounded-xl border ${borderColor} ${bgCard} p-5`}>
+            <h3 className={`font-semibold mb-3 capitalize ${textPrimary}`}>{cat === 'bank' ? 'Bank Details' : cat === 'payment' ? 'Payment Fees' : cat === 'telebirr' ? 'Telebirr Settings' : 'General Settings'}</h3>
+            <div className="space-y-2">
+              {paymentSettings.filter(s => s.category === cat).map(setting => (
+                <div key={setting.key} className={`flex items-center justify-between p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                  <div>
+                    <p className={`font-medium ${textPrimary}`}>{setting.label || setting.key}</p>
+                    <p className={`text-sm ${textSecondary}`}>{setting.value}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => openPaymentSettingModal(setting)} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-slate-100'}`}>
+                      <FiEdit className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeletePaymentSetting(setting.key)} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-600'}`}>
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${payment.status === 'completed' ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700') : payment.status === 'pending' ? (darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700') : (darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700')}`}>{payment.status}</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+              ))}
+              {paymentSettings.filter(s => s.category === cat).length === 0 && (
+                <p className={textMuted}>No settings added yet</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </motion.div>
   );
 
-  const renderApplicationsTab = () => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="mb-6">
-        <h2 className={`text-2xl font-bold ${textPrimary}`}>Applications</h2>
-        <p className={`${textSecondary} mt-1`}>Review job applications.</p>
-      </div>
-      {selectedApplication ? (
-        <div>
-          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleBackToApplications} className={`flex items-center gap-2 mb-4 ${darkMode ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'}`}><FiArrowLeft className="w-4 h-4" />Back to Applications</motion.button>
-          {applicationLoading ? (
-            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent" /></div>
-          ) : applicantProfile ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className={`rounded-2xl border ${borderColor} ${bgCard} p-5`}>
-                  <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Applicant Information</h3>
-                  <div className="space-y-4">
-                    <div><span className={`text-sm ${textMuted}`}>Name</span><p className={`font-medium ${textPrimary}`}>{applicantProfile.firstName} {applicantProfile.lastName}</p></div>
-                    <div><span className={`text-sm ${textMuted}`}>Email</span><p className={textPrimary}>{applicantProfile.email || 'Not provided'}</p></div>
-                    <div><span className={`text-sm ${textMuted}`}>Phone</span><p className={textPrimary}>{applicantProfile.phone || 'Not provided'}</p></div>
-                    {applicantProfile.skills?.length > 0 && (
-                      <div><span className={`text-sm ${textMuted}`}>Skills</span><div className="flex flex-wrap gap-2 mt-1">{applicantProfile.skills.map((skill, i) => (<span key={i} className={`px-2 py-1 rounded-full text-xs ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-700'}`}>{skill}</span>))}</div></div>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className={`rounded-2xl border ${borderColor} ${bgCard} p-5`}>
-                    <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Job Applied</h3>
-                    <p className={`font-medium ${textPrimary}`}>{selectedApplication.jobId?.title}</p>
-                    <p className={`text-sm ${textSecondary} mt-1`}>{selectedApplication.jobId?.location}</p>
-                  </div>
-                  <div className={`rounded-2xl border ${borderColor} ${bgCard} p-5`}>
-                    <h3 className={`text-lg font-semibold ${textPrimary} mb-4`}>Status</h3>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${selectedApplication.status === 'accepted' ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700') : selectedApplication.status === 'rejected' ? (darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700') : (darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700')}`}>{selectedApplication.status}</span>
-                  </div>
-                </div>
-              </div>
-              {selectedApplication.status === 'pending' && (
-                <div className="flex gap-4">
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => handleApproveApplication(selectedApplication._id)} className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition"><FiActivity className="w-5 h-5" />Approve</motion.button>
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => handleRejectApplication(selectedApplication._id)} className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition"><FiTrash2 className="w-5 h-5" />Reject</motion.button>
-                </div>
+  const renderPaymentSettingsModal = () => {
+    if (!showPaymentSettingModal) return null;
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowPaymentSettingModal(false)}>
+        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} onClick={e => e.stopPropagation()} className={`w-full max-w-md rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'} p-6`}>
+          <h3 className={`text-xl font-bold mb-4 ${textPrimary}`}>{paymentFormData.key ? 'Edit' : 'Add'} Payment Setting</h3>
+          <form onSubmit={handleSavePaymentSetting} className="space-y-4">
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Key/Name</label>
+              <input type="text" value={paymentFormData.key} onChange={e => setPaymentFormData(p => ({ ...p, key: e.target.value }))} placeholder="e.g., bank_name" className={`w-full px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-200'}`} required />
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Label</label>
+              <input type="text" value={paymentFormData.label} onChange={e => setPaymentFormData(p => ({ ...p, label: e.target.value }))} placeholder="e.g., Bank Name" className={`w-full px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-200'}`} required />
+            </div>
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Value</label>
+              {paymentFormData.type === 'textarea' ? (
+                <textarea value={paymentFormData.value} onChange={e => setPaymentFormData(p => ({ ...p, value: e.target.value }))} rows={3} className={`w-full px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-200'}`} />
+              ) : (
+                <input type={paymentFormData.type === 'number' ? 'number' : 'text'} value={paymentFormData.value} onChange={e => setPaymentFormData(p => ({ ...p, value: e.target.value }))} className={`w-full px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-200'}`} required />
               )}
             </div>
-          ) : <p className={`${textSecondary} text-center py-8`}>No applicant information found</p>}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {applications.length === 0 ? (
-            <p className={`${textSecondary} text-center py-8`}>No applications yet</p>
-          ) : (
-            applications.map((app, index) => (
-              <motion.div key={app._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className={`rounded-2xl border ${borderColor} ${bgCard} p-5 hover:scale-[1.01] transition-transform`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className={`font-semibold ${textPrimary}`}>{app.jobId?.title || 'Unknown Job'}</h3>
-                    <p className={`text-sm ${textSecondary} mt-1`}>Applicant: {app.employeeId?._id?.slice(0, 8) || 'Unknown'}</p>
-                    <p className={`text-xs ${textMuted} mt-1`}>Applied: {new Date(app.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleViewApplication(app)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-700 text-indigo-400' : 'hover:bg-indigo-50 text-indigo-600'} transition`}><FiEye className="w-4 h-4" />Review</motion.button>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${app.status === 'accepted' ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700') : app.status === 'rejected' ? (darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700') : (darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700')}`}>{app.status}</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      )}
-    </motion.div>
-  );
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${textSecondary}`}>Category</label>
+              <select value={paymentFormData.category} onChange={e => setPaymentFormData(p => ({ ...p, category: e.target.value }))} className={`w-full px-4 py-2 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-200'}`}>
+                <option value="bank">Bank Details</option>
+                <option value="telebirr">Telebirr Settings</option>
+                <option value="payment">Payment Fees</option>
+                <option value="general">General</option>
+              </select>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button type="submit" className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">Save</button>
+              <button type="button" onClick={() => setShowPaymentSettingModal(false)} className="flex-1 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-xl">Cancel</button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    );
+  };
 
   const renderSettingsTab = () => <SettingsPage darkMode={darkMode} onDarkModeChange={setDarkMode} />;
 
@@ -635,9 +660,147 @@ export default function AdminDashboard() {
     }
   };
 
+  const renderUserDetailsModal = () => {
+    if (!selectedUser) return null;
+    const { user, profile, payment } = selectedUser;
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={closeModal}>
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-2xl`}>
+          <div className={`sticky top-0 flex items-center justify-between p-6 border-b ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+              {user?.role === 'employee' ? 'Employee' : 'Recruiter'} Details
+            </h2>
+            <button onClick={closeModal} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+              <FiArrowLeft className={`w-5 h-5 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`} />
+            </button>
+          </div>
+          <div className="p-6 space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Personal Information</h3>
+                <div className="space-y-2">
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Name:</span> {user?.firstName} {user?.lastName}</p>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Email:</span> {user?.email}</p>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Phone:</span> {profile?.phone || 'N/A'}</p>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Region:</span> {profile?.region || 'N/A'}</p>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">City:</span> {profile?.city || 'N/A'}</p>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Gender:</span> {profile?.gender || 'N/A'}</p>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Date of Birth:</span> {profile?.dateOfBirth || 'N/A'}</p>
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Professional Information</h3>
+                <div className="space-y-2">
+                  {user?.role === 'employee' && (
+                    <>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Type of Job:</span> {profile?.typeOfJob || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Languages:</span> {profile?.languages?.join(', ') || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Experience:</span> {profile?.experienceLevel || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Education:</span> {profile?.educationLevel || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Skills:</span> {profile?.skills?.join(', ') || 'N/A'}</p>
+                    </>
+                  )}
+                  {user?.role === 'recruiter' && (
+                    <>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Company:</span> {profile?.companyName || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Industry:</span> {profile?.industry || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Employees:</span> {profile?.numberOfEmployees || 'N/A'}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            {user?.role === 'employee' && (
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Documents</h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Resume</p>
+                    {profile?.resume ? (
+                      <a href={profile.resume} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Resume</a>
+                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
+                  </div>
+                  <div>
+                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>ID Card</p>
+                    {profile?.idCard ? (
+                      <a href={profile.idCard} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View ID Card</a>
+                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
+                  </div>
+                  <div>
+                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Certificate</p>
+                    {profile?.certificate ? (
+                      <a href={profile.certificate} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Certificate</a>
+                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+            {user?.role === 'recruiter' && (
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Company Documents</h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Company Logo</p>
+                    {profile?.companyLogo ? (
+                      <a href={profile.companyLogo} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Logo</a>
+                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
+                  </div>
+                  <div>
+                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Business License</p>
+                    {profile?.businessLicense ? (
+                      <a href={profile.businessLicense} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View License</a>
+                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
+                  </div>
+                  <div>
+                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Tax Document</p>
+                    {profile?.taxDocument ? (
+                      <a href={profile.taxDocument} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Tax Document</a>
+                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+              <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Account Status</h3>
+              <div className="space-y-2">
+                <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Status:</span> 
+                  <span className={`ml-2 px-2 py-1 rounded-full text-sm ${user?.status === 'approved' ? 'bg-green-500/20 text-green-500' : user?.status === 'rejected' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                    {user?.status || 'pending'}
+                  </span>
+                </p>
+                <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Registration Step:</span> {user?.registrationStatus || 'N/A'}</p>
+                <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Registration Date:</span> {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
+                {payment && (
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Payment:</span> ETB {payment.amount} ({payment.status})</p>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {user?.status !== 'approved' && (
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => handleApprove(user?._id)} className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition">
+                  Approve
+                </motion.button>
+              )}
+              {user?.status !== 'rejected' && user?.status !== 'approved' && (
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => handleReject(user?._id)} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition">
+                  Reject
+                </motion.button>
+              )}
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={closeModal} className="flex-1 py-3 bg-slate-600 hover:bg-slate-700 text-white font-medium rounded-xl transition">
+                Close
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  };
+
   return (
     <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab} darkMode={darkMode} setDarkMode={setDarkMode} pendingCount={pendingApprovals.length} onLogout={logout} user={user}>
       {renderContent()}
+      <AnimatePresence>{renderUserDetailsModal()}</AnimatePresence>
+      <AnimatePresence>{renderPaymentSettingsModal()}</AnimatePresence>
     </AdminLayout>
   );
 }

@@ -164,7 +164,7 @@ export default function Applications() {
                       )}
                       {app.jobId?.salary && (
                         <span>{typeof app.jobId.salary === 'object' 
-                          ? `$${app.jobId.salary.min} - $${app.jobId.salary.max}` 
+                          ? `ETB ${app.jobId.salary.min} - ETB ${app.jobId.salary.max}` 
                           : app.jobId.salary}</span>
                       )}
                     </div>

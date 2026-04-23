@@ -24,6 +24,10 @@ const employeeProfileSchema = new mongoose.Schema({
     enum: ['phd', 'masters', 'degree', 'diploma', 'level_1', 'level_2', 'level_3', 'level_4', 'above_level_4', 'above_grade_8', 'above_grade_10', 'above_grade_12', 'none'],
     default: 'none'
   },
+  typeOfJob: { type: String, default: '' },
+  typeOfJobOther: { type: String, default: '' },
+  languages: [{ type: String }],
+  languageOther: { type: String, default: '' },
   desiredJob: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null },
   resume: { type: String, default: '' },
   idCard: { type: String, default: '' },

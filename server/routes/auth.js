@@ -242,7 +242,7 @@ router.post('/employee/step1', auth, async (req, res) => {
       return res.status(404).json({ message: 'Profile not found' });
     }
     
-    const { firstName, middleName, lastName, phone, country, region, city, dateOfBirth, gender, bio, skills, experienceLevel, educationLevel, desiredJob, expectedSalary, availability } = req.body;
+    const { firstName, middleName, lastName, phone, country, region, city, dateOfBirth, gender, bio, skills, experienceLevel, educationLevel, typeOfJob, typeOfJobOther, languages, languageOther, expectedSalary, availability } = req.body;
     
     profile.firstName = firstName || profile.firstName;
     profile.middleName = middleName || profile.middleName;
@@ -257,7 +257,10 @@ router.post('/employee/step1', auth, async (req, res) => {
     profile.skills = skills ? skills.split(',').map(s => s.trim()) : profile.skills;
     profile.experienceLevel = experienceLevel || profile.experienceLevel;
     profile.educationLevel = educationLevel || profile.educationLevel;
-    profile.desiredJob = desiredJob || profile.desiredJob;
+    profile.typeOfJob = typeOfJob || profile.typeOfJob;
+    profile.typeOfJobOther = typeOfJobOther || profile.typeOfJobOther;
+    profile.languages = languages || profile.languages;
+    profile.languageOther = languageOther || profile.languageOther;
     profile.expectedSalary = expectedSalary || profile.expectedSalary;
     profile.availability = availability || profile.availability;
     profile.updatedAt = new Date();
@@ -366,20 +369,27 @@ router.post('/employee/step3', auth, upload.fields([
 
 router.post('/recruiter/step1', auth, async (req, res) => {
   try {
+    console.log('recruiter step1 called, user:', req.user._id);
     const user = await User.findById(req.user._id);
     if (user.role !== 'recruiter') {
+      console.log('User role is not recruiter:', user.role);
       return res.status(403).json({ message: 'Unauthorized' });
     }
     
     const profile = await RecruiterProfile.findOne({ userId: user._id });
     if (!profile) {
+      console.log('Profile not found for user:', user._id);
       return res.status(404).json({ message: 'Profile not found' });
     }
     
     const { companyName, industry, numberOfEmployees, companyDescription, website, foundedYear, managerName, city, kebele, contactEmail, contactPhone } = req.body;
+    console.log('Step1 data received:', { companyName, industry, managerName, city });
     
     profile.companyName = companyName || profile.companyName;
     profile.industry = industry || profile.industry;
+    if (industry === 'other') {
+      profile.industryOther = industry === 'other' ? req.body.industryOther || '' : '';
+    }
     profile.numberOfEmployees = numberOfEmployees || profile.numberOfEmployees;
     profile.companyDescription = companyDescription || profile.companyDescription;
     profile.website = website || profile.website;
@@ -392,12 +402,14 @@ router.post('/recruiter/step1', auth, async (req, res) => {
     profile.updatedAt = new Date();
     
     await profile.save();
+    console.log('Profile saved successfully');
     
     user.registrationStatus = 'document';
     await user.save();
     
-    res.json({ message: 'Company information saved', registrationStatus: user.registrationStatus });
+res.json({ message: 'Company information saved', registrationStatus: user.registrationStatus });
   } catch (error) {
+    console.error('recruiter step1 error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

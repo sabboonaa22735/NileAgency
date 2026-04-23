@@ -252,7 +252,7 @@ const STEPS = [
   { id: 3, title: 'Payment', icon: FiCreditCard }
 ];
 
-const APPLICATION_FEE = 50;
+const APPLICATION_FEE = 5000;
 
 const ETHIOPIAN_REGIONS = [
   'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa',
@@ -280,6 +280,77 @@ const EDUCATION_LEVELS = [
   { value: 'none', label: 'None of them' }
 ];
 
+const TECH_KEYWORDS = ['javascript', 'java', 'python', 'react', 'angular', 'vue', 'node', 'php', 'ruby', 'swift', 'kotlin', 'sql', 'mysql', 'mongodb', 'database', 'web', 'developer', 'software', 'code', 'programming', 'html', 'css', 'json', 'api', 'cloud', 'aws', 'azure', 'docker', 'kubernetes', 'linux', 'server', 'network', 'security', 'cyber', 'it', 'information technology', 'computer', 'data', 'ai', 'machine learning', 'ml', 'artificial intelligence', 'deep learning', 'blockchain', 'crypto', 'mobile', 'ios', 'android', 'app', 'game', 'testing', 'qa', 'automation', 'devops', 'ci/cd', 'git', 'github', 'gitlab'];
+
+const LANGUAGES = [
+  { value: 'oromic', label: 'Oromic' },
+  { value: 'english', label: 'English' },
+  { value: 'amahric', label: 'Amahric' },
+  { value: 'other', label: 'Other' }
+];
+
+const ETHIOPIAN_JOBS = [
+  { value: 'driver', label: 'Driver' },
+  { value: 'secretary', label: 'Secretary' },
+  { value: 'receptionist', label: 'Receptionist' },
+  { value: 'security_guard', label: 'Security Guard' },
+  { value: 'cleaner', label: 'Cleaner' },
+  { value: 'cook', label: 'Cook' },
+  { value: 'waiter', label: 'Waiter' },
+  { value: 'cashier', label: 'Cashier' },
+  { value: 'accountant', label: 'Accountant' },
+  { value: 'bookkeeper', label: 'Bookkeeper' },
+  { value: 'salesperson', label: 'Salesperson' },
+  { value: 'storekeeper', label: 'Storekeeper' },
+  { value: 'electrician', label: 'Electrician' },
+  { value: 'plumber', label: 'Plumber' },
+  { value: 'mechanic', label: 'Mechanic' },
+  { value: 'carpenter', label: 'Carpenter' },
+  { value: 'mason', label: 'Mason' },
+  { value: 'painter', label: 'Painter' },
+  { value: 'gardener', label: 'Gardener' },
+  { value: 'nurse', label: 'Nurse' },
+  { value: 'pharmacist', label: 'Pharmacist' },
+  { value: 'lab_technician', label: 'Lab Technician' },
+  { value: 'teacher', label: 'Teacher' },
+  { value: 'instructor', label: 'Instructor' },
+  { value: 'tailor', label: 'Tailor' },
+  { value: 'seamstress', label: 'Seamstress' },
+  { value: 'photographer', label: 'Photographer' },
+  { value: 'video_editor', label: 'Video Editor' },
+  { value: 'graphic_designer', label: 'Graphic Designer' },
+  { value: 'web_developer', label: 'Web Developer' },
+  { value: 'software_developer', label: 'Software Developer' },
+  { value: 'data_entry', label: 'Data Entry' },
+  { value: 'customer_service', label: 'Customer Service' },
+  { value: 'call_center', label: 'Call Center Agent' },
+  { value: 'courier', label: 'Courier' },
+  { value: 'delivery_person', label: 'Delivery Person' },
+  { value: 'construction_worker', label: 'Construction Worker' },
+  { value: 'factory_worker', label: 'Factory Worker' },
+  { value: 'warehouse_worker', label: 'Warehouse Worker' },
+  { value: 'hotel_manager', label: 'Hotel Manager' },
+  { value: 'restaurant_manager', label: 'Restaurant Manager' },
+  { value: 'shop_manager', label: 'Shop Manager' },
+  { value: 'office_assistant', label: 'Office Assistant' },
+  { value: 'hr_assistant', label: 'HR Assistant' },
+  { value: 'logistics', label: 'Logistics' },
+  { value: 'procurement', label: 'Procurement' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'social_media', label: 'Social Media Manager' },
+  { value: 'content_creator', label: 'Content Creator' },
+  { value: 'journalist', label: 'Journalist' },
+  { value: 'translator', label: 'Translator' },
+  { value: 'interpreter', label: 'Interpreter' },
+  { value: 'barista', label: 'Barista' },
+  { value: 'bouncer', label: 'Bouncer' },
+  { value: 'fitness_trainer', label: 'Fitness Trainer' },
+  { value: 'beautician', label: 'Beautician' },
+  { value: 'hairdresser', label: 'Hairdresser' },
+  { value: 'massage_therapist', label: 'Massage Therapist' },
+  { value: 'other', label: 'Other' }
+];
+
 export default function EmployeeRegistration() {
   const [darkMode, setDarkMode] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
@@ -289,13 +360,16 @@ export default function EmployeeRegistration() {
   const [jobSearch, setJobSearch] = useState('');
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [paymentSettings, setPaymentSettings] = useState([]);
+  const [telebirrSettings, setTelebirrSettings] = useState({});
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     firstName: '', middleName: '', lastName: '', phone: '+251', country: 'Ethiopia',
     region: '', city: '', dateOfBirth: '', gender: '', bio: '', skills: '',
     experienceLevel: 'none', educationLevel: 'none', expectedSalary: '', availability: 'available',
-    resume: null, idCard: null, certificate: null, paymentMethod: '', paymentProof: null, bankReference: ''
+    resume: null, idCard: null, certificate: null, paymentMethod: '', paymentProof: null, bankReference: '',
+    typeOfJob: '', typeOfJobOther: '', languages: [], languageOther: ''
   });
 
   const resumeRef = useRef(null);
@@ -318,7 +392,26 @@ export default function EmployeeRegistration() {
     orbs: ['bg-blue-400/20', 'bg-purple-400/20', 'bg-pink-400/15']
   };
 
-  useEffect(() => { loadJobs(); }, []);
+  useEffect(() => { loadJobs(); loadPaymentSettings(); }, []);
+  
+  const loadPaymentSettings = async () => {
+    try {
+      const [payRes, telebirrRes] = await Promise.all([
+        fetch('/api/admin/public-payment-settings'),
+        fetch('/api/admin/telebirr-settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }}).catch(() => ({ ok: false }))
+      ]);
+      if (payRes.ok) {
+        const data = await payRes.json();
+        setPaymentSettings(data);
+      }
+      if (telebirrRes.ok) {
+        const data = await telebirrRes.json();
+        const telebirrObj = {};
+        data.forEach(s => { telebirrObj[s.key] = s.value; });
+        setTelebirrSettings(telebirrObj);
+      }
+    } catch (err) { console.error('Error loading payment settings:', err); }
+  };
   
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -339,6 +432,20 @@ export default function EmployeeRegistration() {
 
   const filteredJobs = jobs.filter(job => job.title.toLowerCase().includes(jobSearch.toLowerCase()));
 
+  const isResumeRequired = () => {
+    const eduLevel = formData.educationLevel;
+    const skills = formData.skills?.toLowerCase() || '';
+    
+    const aboveDiplomaLevels = ['phd', 'masters', 'degree'];
+    const isAboveDiploma = aboveDiplomaLevels.includes(eduLevel);
+    
+    const hasTechSkills = TECH_KEYWORDS.some(keyword => skills.includes(keyword));
+    
+    return isAboveDiploma || hasTechSkills;
+  };
+
+  const resumeRequired = isResumeRequired();
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -353,9 +460,23 @@ export default function EmployeeRegistration() {
 
   const handleJobSelect = (job) => {
     setSelectedJob(job);
-    setFormData(prev => ({ ...prev, desiredJob: job._id }));
+    setFormData(prev => ({ ...prev, typeOfJob: job._id, typeOfJobOther: '' }));
     setJobSearch(job.title);
     setShowJobDropdown(false);
+  };
+
+  const handleLanguageToggle = (lang) => {
+    setFormData(prev => {
+      const currentLangs = prev.languages || [];
+      const newLangs = currentLangs.includes(lang)
+        ? currentLangs.filter(l => l !== lang)
+        : [...currentLangs, lang];
+      return {
+        ...prev,
+        languages: newLangs,
+        languageOther: lang !== 'other' ? prev.languageOther : prev.languageOther
+      };
+    });
   };
 
   const handleSubmitStep = async () => {
@@ -368,16 +489,38 @@ export default function EmployeeRegistration() {
           setLoading(false);
           return;
         }
+        if (!formData.typeOfJob) {
+          setError('Please select a Type of Job');
+          setLoading(false);
+          return;
+        }
+        if (!formData.languages || formData.languages.length === 0) {
+          setError('Please select at least one language');
+          setLoading(false);
+          return;
+        }
         const data = {
           firstName: formData.firstName, middleName: formData.middleName, lastName: formData.lastName,
           phone: formData.phone, country: formData.country, region: formData.region, city: formData.city,
           dateOfBirth: formData.dateOfBirth, gender: formData.gender, bio: formData.bio, skills: formData.skills,
           experienceLevel: formData.experienceLevel, educationLevel: formData.educationLevel,
-          desiredJob: formData.desiredJob, expectedSalary: formData.expectedSalary, availability: formData.availability
+          typeOfJob: formData.typeOfJob, typeOfJobOther: formData.typeOfJobOther,
+          languages: formData.languages, languageOther: formData.languageOther,
+          expectedSalary: formData.expectedSalary, availability: formData.availability
         };
         await authApi.completeEmployeeStep1(data);
         setCurrentStep(2);
       } else if (currentStep === 2) {
+        if (isResumeRequired() && !formData.resume) {
+          setError('Resume/CV is required for your education level or technology-related skills');
+          setLoading(false);
+          return;
+        }
+        if (!formData.idCard) {
+          setError('ID Card / Passport (Fayda) is required');
+          setLoading(false);
+          return;
+        }
         const formDataToSend = new FormData();
         if (formData.resume) formDataToSend.append('resume', formData.resume);
         if (formData.idCard) formDataToSend.append('idCard', formData.idCard);
@@ -509,7 +652,6 @@ export default function EmployeeRegistration() {
                       <option value="">Select Gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
-                      <option value="other">Other</option>
                     </select>
                   </div>
                 </div>
@@ -527,21 +669,61 @@ export default function EmployeeRegistration() {
                     </select>
                   </div>
                 </div>
-                <div className="space-y-2 relative" ref={jobDropdownRef}>
-                  <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Desired Job Position</label>
+                <div className="space-y-2">
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Type of Jobs <span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
-                    <input type="text" value={jobSearch} onChange={(e) => { setJobSearch(e.target.value); setShowJobDropdown(true); if (!e.target.value) { setSelectedJob(null); setFormData(p => ({ ...p, desiredJob: null })); }}} onFocus={() => setShowJobDropdown(true)} placeholder="Search for a job..." className={`w-full pl-12 px-4 py-3.5 rounded-2xl transition-all duration-300 outline-none ${darkMode ? 'bg-slate-800/50 border border-slate-700 focus:border-cyan-500 text-white placeholder-slate-500' : 'bg-white border border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400'}`} />
+                    <div onClick={() => setShowJobDropdown(!showJobDropdown)} className={`w-full px-4 py-3.5 rounded-2xl transition-all duration-300 outline-none cursor-pointer flex justify-between items-center ${darkMode ? 'bg-slate-800/50 border border-slate-700 focus:border-cyan-500 text-white' : 'bg-white border border-slate-200 focus:border-blue-500 text-slate-900'}`}>
+                      <span>{formData.typeOfJob ? ETHIOPIAN_JOBS.find(j => j.value === formData.typeOfJob)?.label || jobs.find(j => j._id === formData.typeOfJob)?.title || formData.typeOfJobOther || formData.typeOfJob : 'Select a job type'}</span>
+                      <svg className={`w-5 h-5 transition-transform ${showJobDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    {showJobDropdown && (
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`absolute z-50 w-full mt-2 rounded-2xl overflow-hidden shadow-xl max-h-64 overflow-y-auto ${darkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}`}>
+                        <div className="p-2">
+                          <input type="text" value={jobSearch} onChange={(e) => setJobSearch(e.target.value)} placeholder="Search jobs..." className={`w-full px-3 py-2 rounded-lg mb-2 ${darkMode ? 'bg-slate-700 text-white placeholder-slate-400' : 'bg-slate-100 text-slate-900 placeholder-slate-500'}`} />
+                        </div>
+                        <div className="space-y-1 px-2 pb-2">
+                          {ETHIOPIAN_JOBS.filter(j => j.label.toLowerCase().includes(jobSearch.toLowerCase())).map(job => (
+                            <button key={job.value} onClick={() => { setFormData(prev => ({ ...prev, typeOfJob: job.value, typeOfJobOther: job.value === 'other' ? '' : prev.typeOfJobOther })); setShowJobDropdown(false); setJobSearch(''); }} className={`w-full px-3 py-2 text-left rounded-lg transition ${darkMode ? 'hover:bg-slate-700 text-white' : 'hover:bg-slate-100 text-slate-900'}`}>
+                              {job.label}
+                            </button>
+                          ))}
+                          {jobs.length > 0 && jobSearch === '' && (
+                            <>
+                              <div className={`text-xs px-3 py-1 mt-2 ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>--- Database Jobs ---</div>
+                              {jobs.map(job => (
+                                <button key={job._id} onClick={() => { setFormData(prev => ({ ...prev, typeOfJob: job._id })); setShowJobDropdown(false); setJobSearch(''); }} className={`w-full px-3 py-2 text-left rounded-lg transition ${darkMode ? 'hover:bg-slate-700 text-white' : 'hover:bg-slate-100 text-slate-900'}`}>
+                                  {job.title} - {job.location}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                          <button onClick={() => { setFormData(prev => ({ ...prev, typeOfJob: 'other', typeOfJobOther: '' })); setShowJobDropdown(false); setJobSearch(''); }} className={`w-full px-3 py-2 text-left rounded-lg transition border-t ${darkMode ? 'hover:bg-slate-700 text-cyan-400 border-slate-700' : 'hover:bg-slate-100 text-blue-600 border-slate-200'}`}>
+                            + Other (specify below)
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
-                  {showJobDropdown && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`absolute z-50 w-full mt-2 rounded-2xl overflow-hidden shadow-xl ${darkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}`}>
-                      {filteredJobs.length > 0 ? filteredJobs.map(job => (
-                        <button key={job._id} onClick={() => handleJobSelect(job)} className={`w-full px-4 py-3 text-left transition ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
-                          <p className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>{job.title}</p>
-                          <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{job.location} - {job.jobType}</p>
-                        </button>
-                      )) : <div className={`px-4 py-3 text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>No jobs found</div>}
-                    </motion.div>
+                </div>
+                {formData.typeOfJob === 'other' && (
+                  <InputField label="Please specify other job type" name="typeOfJobOther" value={formData.typeOfJobOther} onChange={handleChange} placeholder="Enter specific job type" required isDark={darkMode} icon={FiAward} />
+                )}
+                <div className="space-y-2">
+                  <label className={`block text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Languages <span className="text-red-500">*</span></label>
+                  <div className={`relative rounded-2xl border-2 overflow-hidden ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'}`}>
+                    <div className={`p-3 space-y-2 max-h-40 overflow-y-auto ${darkMode ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
+                      {LANGUAGES.map(lang => (
+                        <label key={lang.value} className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+                          <input type="checkbox" checked={formData.languages?.includes(lang.value) || false} onChange={() => handleLanguageToggle(lang.value)} className="w-5 h-5 rounded border-2 accent-cyan-500" />
+                          <span className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>{lang.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {formData.languages?.includes('other') && (
+                    <InputField label="Please specify other language" name="languageOther" value={formData.languageOther} onChange={handleChange} placeholder="Enter specific language" required isDark={darkMode} icon={FiAward} />
                   )}
                 </div>
                 <InputField label="Skills (Optional)" name="skills" value={formData.skills} onChange={handleChange} placeholder="JavaScript, React, Node.js..." isDark={darkMode} icon={FiAward} />
@@ -552,13 +734,13 @@ export default function EmployeeRegistration() {
             {currentStep === 2 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className={`text-xl font-semibold mb-6 ${colors.text.primary}`}>Upload Documents</h2>
-                {formData.educationLevel === 'none' && (
+                {!isResumeRequired() && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl ${darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
-                    <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Since you selected "None of them" for education level, <strong>Resume/CV upload is optional</strong>.</p>
+                    <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Since you selected education level below Diploma or your skills are not technology-related, <strong>Resume/CV upload is optional</strong>.</p>
                   </motion.div>
                 )}
                 <div className="grid gap-5">
-                  <FileUpload label="Resume / CV" file={formData.resume} onClick={() => resumeRef.current?.click()} isDark={darkMode} required={formData.educationLevel !== 'none'} hint="PDF, DOC, or DOCX (max 5MB)" />
+                  <FileUpload label="Resume / CV" file={formData.resume} onClick={() => resumeRef.current?.click()} isDark={darkMode} required={resumeRequired} hint={resumeRequired ? "PDF, DOC, or DOCX (max 5MB) - Required" : "PDF, DOC, or DOCX (max 5MB) - Optional"} />
                   <input ref={resumeRef} type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange(e, 'resume')} className="hidden" />
                   <FileUpload label="ID Card / Passport (Fayda)" file={formData.idCard} onClick={() => idCardRef.current?.click()} isDark={darkMode} required hint="PDF or Image (max 5MB)" />
                   <input ref={idCardRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'idCard')} className="hidden" />
@@ -579,7 +761,7 @@ export default function EmployeeRegistration() {
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 opacity-90" />
                   <div className="relative">
                     <p className="text-white/80 mb-1">Application Fee</p>
-                    <p className="text-5xl font-bold text-white">${APPLICATION_FEE}</p>
+                    <p className="text-5xl font-bold text-white">{APPLICATION_FEE.toLocaleString()} ETB</p>
                   </div>
                 </motion.div>
 
@@ -587,7 +769,7 @@ export default function EmployeeRegistration() {
                   <h3 className={`text-lg font-medium mb-4 ${colors.text.secondary}`}>Select Payment Method</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <PaymentCard method="bank" icon={FiFile} title="Bank Transfer" subtitle="Pay via bank account" isSelected={formData.paymentMethod === 'bank'} onClick={() => handlePaymentMethodSelect('bank')} isDark={darkMode} />
-                    <PaymentCard method="chapa" icon={FiCreditCard} title="Chapa" subtitle="Pay with Chapa" isSelected={formData.paymentMethod === 'chapa'} onClick={() => handlePaymentMethodSelect('chapa')} isDark={darkMode} />
+                    <PaymentCard method="telebirr" icon={FiPhone} title="Telebirr" subtitle="Pay via Telebirr" isSelected={formData.paymentMethod === 'telebirr'} onClick={() => handlePaymentMethodSelect('telebirr')} isDark={darkMode} />
                   </div>
                 </div>
 
@@ -595,17 +777,27 @@ export default function EmployeeRegistration() {
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-5 rounded-2xl ${darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
                     <h4 className={`font-semibold mb-3 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Bank Transfer Details</h4>
                     <div className={`text-sm space-y-1 ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>
-                      <p><strong>Bank Name:</strong> Commercial Bank of Ethiopia</p>
-                      <p><strong>Account Name:</strong> Nile Agency</p>
-                      <p><strong>Account Number:</strong> 1000123456789</p>
+                      {paymentSettings.filter(s => s.category === 'bank').map(s => (
+                        <p key={s.key}><strong>{s.label}:</strong> {s.value}</p>
+                      ))}
                     </div>
                   </motion.div>
                 )}
 
-                {formData.paymentMethod === 'chapa' && (
+                {formData.paymentMethod === 'telebirr' && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-5 rounded-2xl ${darkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
-                    <h4 className={`font-semibold mb-2 ${darkMode ? 'text-green-300' : 'text-green-800'}`}>Chapa Payment</h4>
-                    <p className={`text-sm ${darkMode ? 'text-green-200' : 'text-green-700'}`}>You will be redirected to Chapa after clicking Submit.</p>
+                    <h4 className={`font-semibold mb-3 ${darkMode ? 'text-green-300' : 'text-green-800'}`}>Telebirr Payment</h4>
+                    <div className={`text-sm space-y-2 ${darkMode ? 'text-green-200' : 'text-green-700'}`}>
+                      {telebirrSettings.telebirr_fullname && (
+                        <p><strong>Full Name:</strong> {telebirrSettings.telebirr_fullname}</p>
+                      )}
+                      {telebirrSettings.telebirr_phone && (
+                        <p><strong>Phone Number:</strong> {telebirrSettings.telebirr_phone}</p>
+                      )}
+                      {telebirrSettings.telebirr_instructions && (
+                        <p className="mt-2"><strong>Instructions:</strong> {telebirrSettings.telebirr_instructions}</p>
+                      )}
+                    </div>
                   </motion.div>
                 )}
 

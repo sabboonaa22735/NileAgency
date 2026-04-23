@@ -6,6 +6,7 @@ const fs = require('fs');
 const User = require('../models/User');
 const Job = require('../models/Job');
 const Payment = require('../models/Payment');
+const PaymentSetting = require('../models/PaymentSetting');
 const Application = require('../models/Application');
 const EmployeeProfile = require('../models/EmployeeProfile');
 const RecruiterProfile = require('../models/RecruiterProfile');
@@ -141,7 +142,7 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
 
 router.post('/users', adminAuth, async (req, res) => {
   try {
-    const { email, password, role, firstName, lastName, companyName, industry, companySize, location, contactPerson, phone, address, bio, skills, photo, resume, idCard, certificate, companyLogo, businessLicense, taxDocument } = req.body;
+    const { email, password, role, firstName, lastName, companyName, industry, numberOfEmployees, website, foundedYear, managerName, city, kebele, contactEmail, contactPhone, phone, address, bio, skills, photo, resume, idCard, certificate, companyLogo, businessLicense, taxDocument, paymentProof } = req.body;
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -177,13 +178,18 @@ router.post('/users', adminAuth, async (req, res) => {
         userId: user._id,
         companyName: companyName || '',
         industry: industry || '',
-        companySize: companySize || '',
-        location: location || '',
-        contactPerson: contactPerson || '',
-        phone: phone || '',
+        numberOfEmployees: numberOfEmployees || '',
+        website: website || '',
+        foundedYear: foundedYear || '',
+        managerName: managerName || '',
+        city: city || '',
+        kebele: kebele || '',
+        contactEmail: contactEmail || '',
+        contactPhone: contactPhone || '',
         companyLogo: companyLogo || '',
         businessLicense: businessLicense || '',
-        taxDocument: taxDocument || ''
+        taxDocument: taxDocument || '',
+        paymentProof: paymentProof || ''
       });
       await recruiterProfile.save();
     }
@@ -199,7 +205,7 @@ router.post('/users', adminAuth, async (req, res) => {
 
 router.put('/users/:id', adminAuth, async (req, res) => {
   try {
-    const { firstName, lastName, companyName, industry, companySize, location, contactPerson, phone, address, bio, skills, registrationStatus, isVerified, photo, resume, idCard, certificate, companyLogo, businessLicense, taxDocument } = req.body;
+    const { firstName, lastName, companyName, industry, numberOfEmployees, website, foundedYear, managerName, city, kebele, contactEmail, contactPhone, registrationStatus, isVerified, photo, resume, idCard, certificate, companyLogo, businessLicense, taxDocument, paymentProof } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -231,13 +237,18 @@ router.put('/users/:id', adminAuth, async (req, res) => {
         { 
           companyName: companyName || '',
           industry: industry || '',
-          companySize: companySize || '',
-          location: location || '',
-          contactPerson: contactPerson || '',
-          phone: phone || '',
+          numberOfEmployees: numberOfEmployees || '',
+          website: website || '',
+          foundedYear: foundedYear || '',
+          managerName: managerName || '',
+          city: city || '',
+          kebele: kebele || '',
+          contactEmail: contactEmail || '',
+          contactPhone: contactPhone || '',
           companyLogo: companyLogo || '',
           businessLicense: businessLicense || '',
-          taxDocument: taxDocument || ''
+          taxDocument: taxDocument || '',
+          paymentProof: paymentProof || ''
         },
         { upsert: true, new: true }
       );
@@ -433,6 +444,101 @@ router.post('/upload', adminAuth, upload.single('file'), async (req, res) => {
     res.json({ url });
   } catch (error) {
     res.status(500).json({ message: 'Upload failed', error: error.message });
+  }
+});
+
+router.get('/payment-settings', adminAuth, async (req, res) => {
+  try {
+    const existingCount = await PaymentSetting.countDocuments();
+    if (existingCount === 0) {
+      const defaultSettings = [
+        { key: 'bank_name', value: 'Commercial Bank of Ethiopia', label: 'Bank Name', category: 'bank' },
+        { key: 'account_name', value: 'Nile Agency', label: 'Account Name', category: 'bank' },
+        { key: 'account_number', value: '1000123456789', label: 'Account Number', category: 'bank' },
+        { key: 'employee_fee', value: '5000', label: 'Employee Registration Fee', type: 'number', category: 'payment' },
+        { key: 'recruiter_fee', value: '10000', label: 'Recruiter Registration Fee', type: 'number', category: 'payment' },
+        { key: 'company_phone', value: '+251912345678', label: 'Company Phone', category: 'general' },
+        { key: 'company_email', value: 'info@nileagency.com', label: 'Company Email', category: 'general' }
+      ];
+      await PaymentSetting.insertMany(defaultSettings);
+    }
+    const settings = await PaymentSetting.find({ isActive: true }).sort({ category: 1, label: 1 });
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/public-payment-settings', async (req, res) => {
+  try {
+    const settings = await PaymentSetting.find({ 
+      $or: [
+        { isActive: true },
+        { category: 'telebirr' }
+      ]
+    }).sort({ category: 1, label: 1 });
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/telebirr-settings', async (req, res) => {
+  try {
+    const telebirrKeys = ['telebirr_fullname', 'telebirr_phone', 'telebirr_instructions'];
+    const settings = await PaymentSetting.find({ key: { $in: telebirrKeys } });
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/telebirr-public', async (req, res) => {
+  try {
+    const telebirrKeys = ['telebirr_fullname', 'telebirr_phone', 'telebirr_instructions'];
+    const settings = await PaymentSetting.find({ key: { $in: telebirrKeys } });
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/payment-settings', adminAuth, async (req, res) => {
+  try {
+    console.log('POST /payment-settings req.body:', req.body);
+    const { key, value, type, label, category } = req.body;
+    if (!key) {
+      return res.status(400).json({ message: 'Key is required' });
+    }
+    const existing = await PaymentSetting.findOne({ key });
+    if (existing) {
+      existing.value = value || existing.value;
+      existing.type = type || existing.type;
+      existing.label = label || existing.label;
+      existing.category = category || existing.category;
+      existing.updatedAt = new Date();
+      await existing.save();
+      res.json({ message: 'Setting updated', setting: existing });
+    } else {
+      const setting = new PaymentSetting({ key, value, type: type || 'text', label, category: category || 'general' });
+      await setting.save();
+      res.json({ message: 'Setting created', setting });
+    }
+  } catch (error) {
+    console.error('Payment settings error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.delete('/payment-settings/:key', adminAuth, async (req, res) => {
+  try {
+    const setting = await PaymentSetting.findOneAndDelete({ key: req.params.key });
+    if (!setting) {
+      return res.status(404).json({ message: 'Setting not found' });
+    }
+    res.json({ message: 'Setting deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
