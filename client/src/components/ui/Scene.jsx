@@ -1,44 +1,25 @@
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
-import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
+import { motion, useSpring, useMotionValue, useMotionTemplate } from 'framer-motion';
 import FloatingShapes from './FloatingShapes';
 
 export function Scene({ children, className = '', contentClassName = '' }) {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  const springX = useSpring(mouseX, { stiffness: 120, damping: 18 });
-  const springY = useSpring(mouseY, { stiffness: 120, damping: 18 });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 2;
-      const y = (e.clientY / window.innerHeight - 0.5) * 2;
-      mouseX.set(x);
-      mouseY.set(y);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [mouseX, mouseY]);
-
   return (
     <div className={`cinematic-page ${className}`}>
-      <motion.div
-        style={{ x: springX, y: springY, willChange: 'transform' }}
-        className="absolute inset-0 pointer-events-none"
-      >
+      <div className="absolute inset-0 pointer-events-none">
         <div className="scene-grid absolute inset-0 opacity-20" />
         <div className="scene-noise" />
         
         <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/[0.08] to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#07111f] to-transparent" />
         
-        <div className="absolute left-[-5%] top-[5%] h-64 w-64 rounded-full bg-cyan-300/8 blur-[100px]" />
-        <div className="absolute left-[20%] top-[30%] h-48 w-48 rounded-full bg-indigo-500/10 blur-[80px]" />
-        <div className="absolute right-[5%] top-[15%] h-56 w-56 rounded-full bg-purple-500/8 blur-[90px]" />
-        <div className="absolute right-[20%] bottom-[20%] h-48 w-48 rounded-full bg-emerald-300/8 blur-[80px]" />
-        <div className="absolute left-[40%] bottom-[10%] h-40 w-40 rounded-full bg-rose-300/6 blur-[70px]" />
-      </motion.div>
+        <div className="absolute left-[-5%] top-[5%] h-64 w-64 rounded-full bg-cyan-300/8 blur-[100px] animate-pulse-soft" />
+        <div className="absolute left-[20%] top-[30%] h-48 w-48 rounded-full bg-indigo-500/10 blur-[80px] animate-pulse-soft-delay" />
+        <div className="absolute right-[5%] top-[15%] h-56 w-56 rounded-full bg-purple-500/8 blur-[90px] animate-pulse-soft" />
+        <div className="absolute right-[20%] bottom-[20%] h-48 w-48 rounded-full bg-emerald-300/8 blur-[80px] animate-pulse-soft-delay" />
+        <div className="absolute left-[40%] bottom-[10%] h-40 w-40 rounded-full bg-rose-300/6 blur-[70px] animate-pulse-soft" />
+        <div className="absolute right-[30%] top-[40%] h-32 w-32 rounded-full bg-pink-400/8 blur-[60px] animate-pulse-soft-delay" />
+        <div className="absolute left-[10%] bottom-[30%] h-24 w-24 rounded-full bg-violet-400/6 blur-[50px] animate-pulse-soft" />
+      </div>
 
       <div className="canvas-container pointer-events-none">
         <CanvasContainer />

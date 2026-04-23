@@ -5,10 +5,24 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const session = require('express-session');
+const passport = require('passport');
 require('dotenv').config();
+
+require('./config/passport')(passport);
 
 const app = express();
 const server = http.createServer(app);
+
+app.use(session({
+  secret: process.env.JWT_SECRET || 'nileagencysecretkey2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000'],

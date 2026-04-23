@@ -21,6 +21,7 @@ import Jobs from './pages/Jobs';
 import Applications from './pages/Applications';
 import SavedJobs from './pages/SavedJobs';
 import { Reveal, Scene } from './components/ui/Scene';
+import ConfirmEmail from './pages/ConfirmEmail';
 
 const getAuthenticatedHome = (user) => {
   if (!user) return '/';
@@ -75,6 +76,7 @@ return (
       <Route path="/" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <Landing />} />
       <Route path="/login" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <Register />} />
+      <Route path="/confirm-email" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <ConfirmEmail />} />
       <Route path="/forgot-password" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <ForgotPassword />} />
       <Route path="/role-selection" element={
         <ProtectedRoute>

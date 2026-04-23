@@ -12,7 +12,7 @@ import {
   FiArrowRight, FiTrendingDown, FiEye, FiMenu as FiMenuIcon, FiAlertTriangle, FiRefreshCw
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import { notificationsApi, applicationsApi, jobsApi, usersApi } from '../services/api';
+import { notificationsApi, applicationsApi, jobsApi, usersApi, chatApi } from '../services/api';
 
 const mockJobs = [
   { id: 1, title: 'Senior React Developer', company: 'TechCorp', location: 'Remote', salary: '$80-120k', type: 'Full-time', posted: '2h ago', logo: 'TC', tags: ['React', 'TypeScript'], featured: true },
@@ -383,7 +383,7 @@ export default function EmployeeDashboard() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
+              className={`p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
             >
               {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
             </motion.button>
@@ -402,11 +402,15 @@ export default function EmployeeDashboard() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+              className={`relative p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
             >
               <FiBell className={`w-5 h-5 ${textSecondary}`} />
               {notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+                <motion.span 
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/40"
+                />
               )}
             </motion.button>
 
@@ -778,7 +782,7 @@ const DashboardTab = ({ darkMode, jobs = [], applications = [], stats, loading }
                       <h3 className={`font-semibold ${textPrimary} mb-1`}>{job.title}</h3>
                       <p className="text-sm text-slate-500">{job.recruiterId?.companyName || job.company || 'Company'} - {job.location || 'Remote'}</p>
                     </div>
-                    <span className="text-sm font-medium text-indigo-400">{job.salary?.min ? `$${job.salary.min}` : job.salary || 'Competitive'}</span>
+                    <span className="text-sm font-medium text-indigo-400">{job.salary?.min && job.salary?.max ? `$${job.salary.min.toLocaleString()}-$${job.salary.max.toLocaleString()}` : typeof job.salary === 'string' ? job.salary : 'Competitive'}</span>
                   </div>
                 </motion.div>
               ))}
@@ -856,11 +860,11 @@ const JobsTab = ({ darkMode, jobs = [], setJobs }) => {
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400 mb-3">
                   <span className="flex items-center gap-1"><FiMapPin className="w-4 h-4" />{job.location || 'Remote'}</span>
-                  <span className="flex items-center gap-1"><FiDollarSign className="w-4 h-4" />{job.salary?.min ? `$${job.salary.min}-$${job.salary.max}` : job.salary || 'Competitive'}</span>
+                  <span className="flex items-center gap-1"><FiDollarSign className="w-4 h-4" />{job.salary?.min && job.salary?.max ? `$${job.salary.min.toLocaleString()}-$${job.salary.max.toLocaleString()}` : typeof job.salary === 'string' ? job.salary : 'Competitive'}</span>
                   <span className="flex items-center gap-1"><FiClock className="w-4 h-4" />{job.posted}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {job.tags.map(tag => (
+                  {(job.tags || job.skills || []).map(tag => (
                     <span key={tag} className="px-3 py-1 text-xs bg-indigo-500/20 text-indigo-300 rounded-full">{tag}</span>
                   ))}
                 </div>

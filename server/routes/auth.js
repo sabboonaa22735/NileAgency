@@ -2,13 +2,42 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
+const passport = require('passport');
 const User = require('../models/User');
 const EmployeeProfile = require('../models/EmployeeProfile');
 const RecruiterProfile = require('../models/RecruiterProfile');
 const Payment = require('../models/Payment');
 const { auth, JWT_SECRET } = require('../middlewares/auth');
+const { sendOtpEmail } = require('../utils/email');
+
+const generateOtp = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 const router = express.Router();
+
+router.get('/google', passport.authenticate('google', { 
+  scope: ['profile', 'email'],
+  prompt: 'select_account'
+}));
+
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login?error=google', failureFlash: true }),
+  async (req, res) => {
+    try {
+      console.log('Google callback - user:', req.user);
+      const token = jwt.sign({ userId: req.user._id }, JWT_SECRET, { expiresIn: '7d' });
+      const redirectUrl = req.user.role 
+        ? `http://localhost:5173/dashboard?token=${token}` 
+        : `http://localhost:5173/role-selection?token=${token}`;
+      console.log('Redirecting to:', redirectUrl);
+      res.redirect(redirectUrl);
+    } catch (err) {
+      console.error('Google callback error:', err);
+      res.redirect('http://localhost:5173/login?error=auth');
+    }
+  }
+);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -23,8 +52,15 @@ router.post('/register', async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
-    const user = new User({ email, password });
+    
+    const otp = generateOtp();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    
+    const user = new User({ email, password, otp, otpExpires });
     await user.save();
+    
+    await sendOtpEmail(email, otp);
+    
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, user: { 
       id: user._id, 
@@ -61,6 +97,58 @@ router.post('/login', async (req, res) => {
       role: user.role, 
       registrationStatus: user.registrationStatus 
     }});
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.otp || user.otp !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    
+    if (!user.otpExpires || user.otpExpires < new Date()) {
+      return res.status(400).json({ message: 'OTP expired' });
+    }
+    
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpires = null;
+    await user.save();
+    
+    res.json({ message: 'Email verified successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const otp = generateOtp();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    await user.save();
+    
+    await sendOtpEmail(email, otp);
+    
+    res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -288,17 +376,17 @@ router.post('/recruiter/step1', auth, async (req, res) => {
       return res.status(404).json({ message: 'Profile not found' });
     }
     
-    const { companyName, industry, companySize, companyDescription, website, location, foundedYear, taxId, contactPerson, contactEmail, contactPhone } = req.body;
+    const { companyName, industry, numberOfEmployees, companyDescription, website, foundedYear, managerName, city, kebele, contactEmail, contactPhone } = req.body;
     
     profile.companyName = companyName || profile.companyName;
     profile.industry = industry || profile.industry;
-    profile.companySize = companySize || profile.companySize;
+    profile.numberOfEmployees = numberOfEmployees || profile.numberOfEmployees;
     profile.companyDescription = companyDescription || profile.companyDescription;
     profile.website = website || profile.website;
-    profile.location = location || profile.location;
     profile.foundedYear = foundedYear || profile.foundedYear;
-    profile.taxId = taxId || profile.taxId;
-    profile.contactPerson = contactPerson || profile.contactPerson;
+    profile.managerName = managerName || profile.managerName;
+    profile.city = city || profile.city;
+    profile.kebele = kebele || profile.kebele;
     profile.contactEmail = contactEmail || profile.contactEmail;
     profile.contactPhone = contactPhone || profile.contactPhone;
     profile.updatedAt = new Date();
@@ -388,6 +476,11 @@ router.post('/recruiter/step3', auth, upload.fields([
       description: `Recruiter registration application fee - ${paymentMethod}`
     });
     await payment.save();
+    
+    profile.paymentMethod = paymentMethod;
+    profile.bankReference = bankReference || '';
+    profile.paymentProof = paymentProofPath;
+    await profile.save();
     
     user.registrationStatus = 'pending_approval';
     await user.save();

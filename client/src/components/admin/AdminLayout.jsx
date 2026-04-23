@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from
 import { 
   FiHome, FiUsers, FiBriefcase, FiDollarSign, FiMessageSquare, FiSettings, 
   FiMenu, FiX, FiSearch, FiBell, FiChevronLeft, FiChevronRight, FiLogOut,
-  FiShield, FiMoon, FiSun, FiMoreVertical, FiHexagon
+  FiShield, FiMoon, FiSun, FiMoreVertical, FiHexagon, FiUser
 } from 'react-icons/fi';
 
 const navItems = [
@@ -189,7 +189,7 @@ export default function AdminLayout({
               {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
             </motion.button>
 
-            <div className="relative">
+            <div className="relative z-[70]">
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -198,17 +198,20 @@ export default function AdminLayout({
               >
                 <FiBell className={`w-5 h-5 ${textSecondary}`} />
                 {pendingCount > 0 && (
-                  <motion.span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-[10px] text-white font-medium">{pendingCount > 9 ? '9+' : pendingCount}</span>
+                  <motion.span 
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/50"
+                  >
+                    <span className="text-[10px] text-white font-bold">{pendingCount > 9 ? '9+' : pendingCount}</span>
                   </motion.span>
                 )}
               </motion.button>
             </div>
 
             <div className="relative">
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button 
+                type="button"
                 onClick={() => setProfileOpen(!profileOpen)}
                 className={`flex items-center gap-2 p-1.5 pr-3 rounded-xl ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
               >
@@ -217,7 +220,7 @@ export default function AdminLayout({
                 </div>
                 <span className={`text-sm font-medium ${textPrimary} hidden lg:block`}>Admin</span>
                 <FiMoreVertical className={`w-4 h-4 ${textMuted} hidden lg:block`} />
-              </motion.button>
+              </button>
             </div>
           </div>
         </div>
@@ -380,10 +383,17 @@ export default function AdminLayout({
           style={{ position: 'fixed', right: 16, top: 64, zIndex: 100 }}
         >
           <div className={`p-4 border-b ${borderColor}`}>
-            <p className={`font-medium ${textPrimary}`}>Admin User</p>
-            <p className={`text-sm ${textMuted}`}>admin@nile.com</p>
+            <p className={`font-medium ${textPrimary}`}>{user?.email || 'Admin User'}</p>
+            <p className={`text-sm ${textMuted}`}>{user?.role || 'admin'}</p>
           </div>
           <div className="p-2">
+            <button 
+              onClick={() => { setActiveTab('profile'); setProfileOpen(false); }}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl ${darkMode ? 'hover:bg-indigo-500/10 text-indigo-400' : 'hover:bg-indigo-50 text-indigo-600'} transition`}
+            >
+              <FiUser className="w-4 h-4" />
+              <span className="text-sm font-medium">Profile</span>
+            </button>
             <button onClick={onLogout} className={`w-full flex items-center gap-3 p-3 rounded-xl ${darkMode ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-600'} transition`}>
               <FiLogOut className="w-4 h-4" />
               <span className="text-sm font-medium">Logout</span>

@@ -1387,6 +1387,67 @@ option {
   50% { box-shadow: 0 0 60px rgba(91, 124, 255, 0.4), 0 0 120px rgba(91, 124, 255, 0.15); }
 }
 
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.pulse-soft {
+  animation: pulse-soft 8s ease-in-out infinite;
+}
+
+.pulse-soft-delay {
+  animation: pulse-soft 8s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+@keyframes float-3d {
+  0%, 100% { transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg); }
+  25% { transform: translate3d(10px, -15px, 0) rotateX(5deg) rotateY(5deg); }
+  50% { transform: translate3d(-5px, -25px, 0) rotateX(-3deg) rotateY(3deg); }
+  75% { transform: translate3d(-15px, -10px, 0) rotateX(2deg) rotateY(-2deg); }
+}
+
+.float-3d {
+  animation: float-3d 12s ease-in-out infinite;
+}
+
+@keyframes shimmer-wave {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-effect {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-wave 3s ease-in-out infinite;
+}
+
+@keyframes glowing-border {
+  0%, 100% { box-shadow: 0 0 20px rgba(91, 124, 255, 0.3), 0 0 40px rgba(91, 124, 255, 0.1); }
+  50% { box-shadow: 0 0 30px rgba(91, 124, 255, 0.5), 0 0 60px rgba(91, 124, 255, 0.2); }
+}
+
+.glow-animated {
+  animation: glowing-border 3s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.gradient-animated {
+  background-size: 200% 200%;
+  animation: gradient-shift 5s ease infinite;
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -1996,6 +2057,199 @@ option {
   border-radius: 20px;
   padding: 1.25rem;
   margin-bottom: 1.5rem;
+}
+
+/* ==================== Role Selection Cards ==================== */
+.role-card {
+  position: relative;
+  padding: 1.25rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(91, 124, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.role-card:hover::before {
+  opacity: 1;
+}
+
+.role-card.active {
+  border-color: rgba(91, 124, 255, 0.5);
+  background: rgba(91, 124, 255, 0.1);
+  box-shadow: 0 0 30px rgba(91, 124, 255, 0.2);
+}
+
+.role-card .icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.role-card.active .icon-wrapper {
+  background: rgba(91, 124, 255, 0.2);
+}
+
+.role-card .role-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.role-card .role-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+:root.light .role-card {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(91, 124, 255, 0.15);
+}
+
+:root.light .role-card.active {
+  background: rgba(91, 124, 255, 0.1);
+  border-color: rgba(91, 124, 255, 0.4);
+}
+
+:root.light .role-card .icon-wrapper {
+  background: rgba(91, 124, 255, 0.1);
+}
+
+:root.light .role-card .role-title {
+  color: #1a1a2e;
+}
+
+:root.light .role-card .role-desc {
+  color: #64748b;
+}
+
+/* ==================== Enhanced Focus States ==================== */
+.input-field {
+  position: relative;
+}
+
+.input-field:focus + .input-focus-indicator,
+.input-field:focus ~ .input-focus-indicator {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.input-focus-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #5b7cff, #39c6ff, #6ff7d2);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.3s ease;
+  opacity: 0;
+}
+
+.input-field:focus ~ .input-focus-indicator {
+  transform: scaleX(1);
+}
+
+/* ==================== Enhanced Button Styles ==================== */
+.submit-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.submit-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.submit-btn:hover::after {
+  left: 100%;
+  animation: shimmer-wave 1.5s ease-in-out infinite;
+}
+
+/* ==================== OTP Input Styles ==================== */
+
+.otp-container {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.otp-input {
+  width: 52px;
+  height: 60px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-radius: 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text);
+  outline: none;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dark .otp-input {
+  color: #e5eefc;
+}
+
+.otp-input::placeholder {
+  color: rgba(159, 181, 255, 0.3);
+}
+
+.otp-input:focus {
+  border-color: rgba(139, 162, 255, 0.6);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(91, 124, 255, 0.15), 0 8px 24px rgba(91, 124, 255, 0.1);
+}
+
+.otp-input.otp-filled {
+  border-color: rgba(139, 162, 255, 0.5);
+  background: rgba(91, 124, 255, 0.1);
+}
+
+.light .otp-input {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(91, 124, 255, 0.25);
+  color: #1a1a2e;
+}
+
+.light .otp-input:focus {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(91, 124, 255, 0.6);
+}
+
+.light .otp-input.otp-filled {
+  background: rgba(91, 124, 255, 0.15);
+  border-color: rgba(91, 124, 255, 0.5);
 }
 
 .options-title {

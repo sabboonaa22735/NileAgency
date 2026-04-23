@@ -24,7 +24,7 @@ export default function ForgotPassword() {
   };
 
   const handleGoogleReset = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    window.location.href = 'http://localhost:5001/api/auth/google';
   };
 
   if (submitted) {
@@ -99,13 +99,16 @@ export default function ForgotPassword() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="input-group">
-          <label className="input-label">Email address</label>
+          <label htmlFor="email" className="input-label">Email address</label>
           <div className="input-wrapper">
             <div className="input-icon">
               <FiMail />
             </div>
             <input
               type="email"
+              id="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"

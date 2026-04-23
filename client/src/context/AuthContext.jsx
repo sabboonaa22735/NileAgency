@@ -24,10 +24,31 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const oauthToken = urlParams.get('token');
+        
+        if (oauthToken) {
+          localStorage.setItem('token', oauthToken);
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+        
         const token = localStorage.getItem('token');
         const savedUser = localStorage.getItem('user');
         
         if (!token || !savedUser) {
+          if (token) {
+            try {
+              const { data } = await authApi.me();
+              localStorage.setItem('user', JSON.stringify(data));
+              setUser(data);
+              setLoading(false);
+              return;
+            } catch (err) {
+              clearAuthData();
+              setLoading(false);
+              return;
+            }
+          }
           setLoading(false);
           return;
         }

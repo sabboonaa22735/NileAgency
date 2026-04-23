@@ -1,6 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, MeshTransmissionMaterial, Sparkles } from '@react-three/drei';
+import { Float, MeshTransmissionMaterial, Sparkles, MeshDistortMaterial, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -45,6 +45,38 @@ function AbstractShape({ position, scale = 1, speed = 1, color, geometry = 'toru
           color={color}
           transmission={0.92}
           roughness={0.08}
+        />
+      </mesh>
+    </Float>
+  );
+}
+
+function AnimatedSphere({ position, scale = 1, color = '#5b7cff' }) {
+  const meshRef = useRef();
+  const materialRef = useRef();
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += 0.002;
+      meshRef.current.rotation.x += 0.001;
+    }
+    if (materialRef.current) {
+      materialRef.current.distort = 0.3 + Math.sin(state.clock.elapsedTime * 0.5) * 0.15;
+    }
+  });
+
+  return (
+    <Float speed={1.5} rotationIntensity={0.5} floatIntensity={1}>
+      <mesh ref={meshRef} position={position} scale={scale}>
+        <sphereGeometry args={[1, 64, 64]} />
+        <MeshDistortMaterial
+          ref={materialRef}
+          color={color}
+          transmission={0.9}
+          roughness={0.1}
+          distort={0.3}
+          speed={2}
+          thickness={0.5}
         />
       </mesh>
     </Float>
@@ -190,6 +222,33 @@ function TwistedRibbon({ position, scale = 1, color = '#8ea2ff' }) {
   );
 }
 
+function MorphingBlob({ position, scale = 1, color = '#5b7cff' }) {
+  const meshRef = useRef();
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += 0.001;
+      meshRef.current.rotation.y += 0.002;
+    }
+  });
+
+  return (
+    <Float speed={2} rotationIntensity={0.4} floatIntensity={1}>
+      <mesh ref={meshRef} position={position} scale={scale}>
+        <sphereGeometry args={[1, 32, 32]} />
+        <MeshDistortMaterial
+          color={color}
+          speed={3}
+          distort={0.6}
+          transmission={0.9}
+          roughness={0.1}
+          thickness={0.5}
+        />
+      </mesh>
+    </Float>
+  );
+}
+
 export default function FloatingShapes() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -203,6 +262,7 @@ export default function FloatingShapes() {
     mint: '#059669',
     peach: '#ea580c',
     violet: '#7c3aed',
+    pink: '#ec4899',
   };
   
   const darkColors = {
@@ -211,6 +271,7 @@ export default function FloatingShapes() {
     mint: '#6ff7d2',
     peach: '#ffbb8b',
     violet: '#a78bfa',
+    pink: '#f472b6',
   };
   
   const colors = isLight ? lightColors : darkColors;
@@ -231,13 +292,14 @@ export default function FloatingShapes() {
       <pointLight position={[8, -5, 5]} intensity={isLight ? 0.6 : 0.8} color={colors.cyan} />
       <pointLight position={[0, 8, 5]} intensity={isLight ? 0.5 : 0.6} color={colors.mint} />
       <pointLight position={[0, -8, 5]} intensity={isLight ? 0.4 : 0.5} color={colors.peach} />
+      <pointLight position={[-5, -5, 3]} intensity={isLight ? 0.3 : 0.5} color={colors.pink} />
 
       <Sparkles 
-        count={150} 
-        scale={20} 
-        size={2} 
-        speed={0.3} 
-        opacity={isLight ? 0.3 : 0.5}
+        count={200} 
+        scale={25} 
+        size={2.5} 
+        speed={0.4} 
+        opacity={isLight ? 0.4 : 0.6}
         color={sparklesColor}
       />
 
@@ -277,16 +339,35 @@ export default function FloatingShapes() {
         geometry="cone"
       />
 
+      <AnimatedSphere
+        position={[3.5, -2, -5]}
+        scale={0.5}
+        color={colors.pink}
+      />
+      <AnimatedSphere
+        position={[-3, -1.5, -4]}
+        scale={0.35}
+        color={colors.violet}
+      />
+
+      <MorphingBlob
+        position={[0, 2.5, -6]}
+        scale={0.45}
+        color={colors.cyan}
+      />
+
       <GlowingOrb position={[3, 2, -5]} scale={0.5} color={colors.indigo} />
       <GlowingOrb position={[-2, 2.5, -4]} scale={0.35} color={colors.cyan} />
       <GlowingOrb position={[0, -3, -5]} scale={0.4} color={colors.mint} />
+      <GlowingOrb position={[-3, -2, -5]} scale={0.3} color={colors.pink} />
 
       <Ring position={[-1, 1, -6]} scale={0.8} color={sparklesColor} />
       <Ring position={[2, -2.5, -5]} scale={0.5} color={colors.cyan} />
+      <Ring position={[1.5, 2, -6]} scale={0.3} color={colors.pink} />
 
       <TwistedRibbon position={[0, 0, -7]} scale={0.6} color={colors.mint} />
 
-      <ParticleField count={250} />
+      <ParticleField count={300} />
     </Canvas>
   );
 }

@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 import { 
   FiHome, FiBriefcase, FiUsers, FiMessageSquare, FiBarChart2, FiSettings, FiSearch, FiBell, FiSun, FiMoon,
   FiPlus, FiFilter, FiMoreVertical, FiClock, FiStar, FiDownload, FiUpload,
   FiSend, FiPaperclip, FiPhone, FiVideo, FiCalendar, FiMapPin, FiDollarSign, FiAward, FiTrendingUp,
   FiChevronLeft, FiChevronRight, FiChevronDown, FiArrowUp, FiArrowDown, FiLogOut, FiUser, FiEdit, FiShield, FiMenu,
-  FiX, FiFilter as FiFilterIcon, FiRefreshCw
+  FiX, FiFilter as FiFilterIcon, FiRefreshCw, FiBookmark
 } from 'react-icons/fi';
 import { jobsApi, applicationsApi, chatApi, usersApi, notificationsApi } from '../services/api';
 
 const RecruiterDashboard = () => {
+  const { user, logout: authLogout } = useAuth();
+  const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -705,7 +709,7 @@ const RecruiterDashboard = () => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
+              className={`p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-indigo-600'} transition`}
             >
               {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
             </motion.button>
@@ -724,10 +728,16 @@ const RecruiterDashboard = () => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative p-2.5 rounded-xl ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
+              className={`relative p-2.5 rounded-xl z-[70] ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}
             >
               <FiBell className={`w-5 h-5 ${textSecondary}`} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+              {notifications.filter(n => !n.read).length > 0 && (
+                <motion.span 
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg shadow-red-500/40"
+                />
+              )}
             </motion.button>
 
             <motion.button 
@@ -744,6 +754,46 @@ const RecruiterDashboard = () => {
           </div>
         </div>
       </motion.nav>
+
+      <AnimatePresence>
+        {showProfile && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className={`absolute right-4 top-14 w-56 ${glassEffect} rounded-2xl overflow-hidden z-[60] shadow-2xl`}
+          >
+            <div className={`p-4 border-b ${borderColor}`}>
+              <p className={`font-medium ${textPrimary} truncate`}>{user?.email || 'recruiter@company.com'}</p>
+              <p className="text-xs text-slate-500 capitalize">{user?.role || 'Recruiter'}</p>
+            </div>
+            <div className="p-2">
+              <Link to="/profile" onClick={() => setShowProfile(false)} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                <FiUser className="w-4 h-4" />
+                <span className="text-sm">My Profile</span>
+              </Link>
+              <Link to="/saved-jobs" onClick={() => setShowProfile(false)} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                <FiBookmark className="w-4 h-4" />
+                <span className="text-sm">Saved Jobs</span>
+              </Link>
+              <button onClick={() => { setActiveTab('settings'); setShowProfile(false); }} className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                <FiSettings className="w-4 h-4" />
+                <span className="text-sm">Settings</span>
+              </button>
+              <button onClick={() => { authLogout(); navigate('/login'); }} className={`w-full flex items-center gap-3 p-2 rounded-lg ${darkMode ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-600'} transition-colors`}>
+                <FiLogOut className="w-4 h-4" />
+                <span className="text-sm">Logout</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showProfile && (
+          <div className="fixed inset-0 z-[50]" onClick={() => setShowProfile(false)} />
+        )}
+      </AnimatePresence>
 
       <div className="fixed top-16 left-0 right-0 h-px z-40">
         <motion.div 
