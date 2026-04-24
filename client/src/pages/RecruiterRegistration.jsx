@@ -284,8 +284,6 @@ const STEPS = [
   { id: 3, title: 'Payment', icon: FiCreditCard }
 ];
 
-const APPLICATION_FEE = 10000;
-
 const INDUSTRIES = [
   { value: '', label: 'Select Industry' },
   { value: 'technology', label: 'Technology' },
@@ -314,6 +312,9 @@ export default function RecruiterRegistration() {
     businessLicense: null, companyLogo: null, taxDocument: null,
     paymentMethod: '', paymentProof: null, bankReference: ''
   });
+  const [applicationFee, setApplicationFee] = useState(0);
+  const [companyPhone, setCompanyPhone] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
 
   const businessLicenseRef = useRef(null);
   const companyLogoRef = useRef(null);
@@ -334,8 +335,28 @@ export default function RecruiterRegistration() {
           telebirrData.forEach(s => { telebirrObj[s.key] = s.value; });
           setTelebirrSettings(telebirrObj);
         }
+        const feeSetting = data.find(s => s.key === 'recruiter_fee');
+        if (feeSetting) {
+          setApplicationFee(parseInt(feeSetting.value) || 0);
+        }
+        const phoneSetting = data.find(s => s.key === 'company_phone');
+        if (phoneSetting && phoneSetting.value) {
+          setCompanyPhone(phoneSetting.value);
+        } else {
+          setCompanyPhone('+251912345678');
+        }
+        const emailSetting = data.find(s => s.key === 'company_email');
+        if (emailSetting && emailSetting.value) {
+          setCompanyEmail(emailSetting.value);
+        } else {
+          setCompanyEmail('info@nileagency.com');
+        }
       }
-    } catch (err) { console.error('Error loading payment settings:', err); }
+    } catch (err) {
+      console.error('Error loading payment settings:', err);
+      setCompanyPhone('+251912345678');
+      setCompanyEmail('info@nileagency.com');
+    }
   };
 
   const colors = darkMode ? {
@@ -432,9 +453,16 @@ export default function RecruiterRegistration() {
               <p className={`text-sm ${darkMode ? 'text-violet-300' : 'text-violet-800'}`}>
                 <strong>Important:</strong> We will let you know by email within <strong>10 minutes</strong> if approved.
               </p>
-              <p className={`text-sm mt-3 ${darkMode ? 'text-violet-300' : 'text-violet-800'}`}>
-                Or call us at: <span className="font-bold flex items-center gap-2 mt-1"><FiPhone className="w-4 h-4" /> 0998765432</span>
-              </p>
+              {companyPhone && (
+                <p className={`text-sm mt-3 ${darkMode ? 'text-violet-300' : 'text-violet-800'}`}>
+                  Or call us at: <span className="font-bold flex items-center gap-2 mt-1"><FiPhone className="w-4 h-4" /> {companyPhone}</span>
+                </p>
+              )}
+              {companyEmail && (
+                <p className={`text-sm mt-2 ${darkMode ? 'text-violet-300' : 'text-violet-800'}`}>
+                  Or email: <span className="font-bold">{companyEmail}</span>
+                </p>
+              )}
             </div>
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleLogout} className="w-full py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg shadow-purple-500/25">
               Return to Login
@@ -482,14 +510,13 @@ export default function RecruiterRegistration() {
           className={`backdrop-blur-xl rounded-3xl p-8 border shadow-2xl ${darkMode ? 'bg-slate-900/80 border-slate-700' : 'bg-white/80 border-slate-200'}`}
         >
           <AnimatePresence mode="wait">
-            {error && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {error}
-              </motion.div>
-            )}
-
             {currentStep === 1 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <motion.div key="step1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                {error && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    {error}
+                  </motion.div>
+                )}
                 <h2 className={`text-xl font-semibold mb-6 ${colors.text.primary}`}>Company Information</h2>
                 <InputField label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="Enter company name" required isDark={darkMode} icon={FiHome} />
                 
@@ -529,7 +556,7 @@ export default function RecruiterRegistration() {
             )}
 
             {currentStep === 2 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <motion.div key="step2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <h2 className={`text-xl font-semibold mb-6 ${colors.text.primary}`}>Upload Company Documents</h2>
                 <div className="grid gap-5">
                   <FileUpload label="Business License / Trade License" file={formData.businessLicense} onClick={() => businessLicenseRef.current?.click()} isDark={darkMode} required hint="PDF or Image (max 5MB)" />
@@ -545,7 +572,7 @@ export default function RecruiterRegistration() {
             )}
 
             {currentStep === 3 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <motion.div key="step3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <h2 className={`text-xl font-semibold mb-6 ${colors.text.primary}`}>Application Fee Payment</h2>
                 <motion.div 
                   className="relative overflow-hidden rounded-2xl p-8 text-center"
@@ -555,7 +582,7 @@ export default function RecruiterRegistration() {
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 opacity-90" />
                   <div className="relative">
                     <p className="text-white/80 mb-1">Application Fee</p>
-                    <p className="text-5xl font-bold text-white">{APPLICATION_FEE.toLocaleString()} ETB</p>
+                    <p className="text-5xl font-bold text-white">{applicationFee.toLocaleString()} ETB</p>
                   </div>
                 </motion.div>
 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from
 import { 
   FiHome, FiUsers, FiBriefcase, FiDollarSign, FiMessageSquare, FiSettings, 
   FiMenu, FiX, FiSearch, FiBell, FiChevronLeft, FiChevronRight, FiLogOut,
-  FiShield, FiMoon, FiSun, FiMoreVertical, FiHexagon, FiUser
+  FiShield, FiMoon, FiSun, FiMoreVertical, FiHexagon, FiUser, FiEdit
 } from 'react-icons/fi';
 
 const navItems = [
@@ -14,7 +14,6 @@ const navItems = [
   { id: 'payments', label: 'Payments', icon: FiDollarSign },
   { id: 'applications', label: 'Applications', icon: FiDollarSign },
   { id: 'messages', label: 'Messages', icon: FiMessageSquare },
-  { id: 'settings', label: 'Settings', icon: FiSettings },
 ];
 
 export default function AdminLayout({ 
@@ -25,7 +24,10 @@ export default function AdminLayout({
   setDarkMode,
   pendingCount = 0,
   onLogout,
-  user
+  user,
+  hideSidebar = false,
+  notifications = [],
+  onMarkAsRead
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -132,9 +134,9 @@ export default function AdminLayout({
         animate={{ y: 0 }}
         className={`fixed top-0 left-0 right-0 z-[60] h-16 ${glassEffect} border-b ${borderColor}`}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-transparent to-purple-500/5 opacity-50" />
-        <div className={`absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-${darkMode ? 'indigo-500' : 'indigo-300'} to-transparent opacity-30`} />
-        <div className="flex items-center justify-between h-full px-4 lg:px-6">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-transparent to-purple-500/5 opacity-50 pointer-events-none" />
+        <div className={`absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-${darkMode ? 'indigo-500' : 'indigo-300'} to-transparent opacity-30 pointer-events-none`} />
+        <div className="flex items-center justify-between h-full px-4 lg:px-6 relative z-10">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -143,27 +145,29 @@ export default function AdminLayout({
               {mobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
             </button>
 
-            <motion.div className="flex items-center gap-3">
-              <motion.div 
-                whileHover={{ rotate: 360, scale: 1.1 }}
-                transition={{ duration: 0.5 }}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center ${darkMode ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'}`}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 transition-all cursor-pointer"
               >
                 <FiShield className="w-5 h-5 text-white" />
-              </motion.div>
+              </button>
               <AnimatePresence>
                 {!sidebarCollapsed && (
-                  <motion.span 
+                  <button
+                    type="button"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
-                    className={`text-lg font-bold ${textPrimary} hidden lg:block`}
+                    onClick={() => setActiveTab('dashboard')}
+                    className="text-lg font-bold text-slate-100 hidden lg:block hover:opacity-70 transition-opacity cursor-pointer"
                   >
                     Admin Panel
-                  </motion.span>
+                  </button>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           </div>
 
           <motion.div className="hidden md:flex flex-1 max-w-md mx-8">
@@ -192,13 +196,13 @@ export default function AdminLayout({
             <div className="relative z-[70]">
 <button 
             type="button"
-            onClick={() => { console.log('Notification clicked'); setNotificationsOpen(!notificationsOpen); }}
+            onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }}
             style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}
             className={darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}
           >
             <FiBell className={`w-5 h-5 ${textSecondary}`} />
-            {pendingCount > 0 && (
-              <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
+            {(pendingCount > 0 || (notifications && notifications.length > 0)) && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
             )}
           </button>
             </div>
@@ -230,7 +234,7 @@ export default function AdminLayout({
 
       <motion.aside 
         initial={{ x: -100 }}
-        animate={{ x: 0 }}
+        animate={{ x: hideSidebar ? -300 : 0 }}
         className={`fixed left-0 top-16 bottom-0 z-[30] ${sidebarWidth} ${bgSidebar} border-r ${borderColor} transition-all duration-300 hidden lg:flex flex-col overflow-hidden`}
       >
         {darkMode && (
@@ -388,6 +392,13 @@ export default function AdminLayout({
               <FiUser className="w-4 h-4" />
               <span className="text-sm font-medium">Profile</span>
             </button>
+            <button 
+              onClick={() => { setActiveTab('settings'); setProfileOpen(false); }}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl ${darkMode ? 'hover:bg-indigo-500/10 text-indigo-400' : 'hover:bg-indigo-50 text-indigo-600'} transition`}
+            >
+              <FiSettings className="w-4 h-4" />
+              <span className="text-sm font-medium">Settings</span>
+            </button>
             <button onClick={onLogout} className={`w-full flex items-center gap-3 p-3 rounded-xl ${darkMode ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-600'} transition`}>
               <FiLogOut className="w-4 h-4" />
               <span className="text-sm font-medium">Logout</span>
@@ -396,7 +407,272 @@ export default function AdminLayout({
         </motion.div>
       )}
 
-      <motion.main initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-16 lg:pl-64 transition-all duration-300">
+      {notificationsOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+          className={`absolute right-4 top-14 w-80 ${glassEffect} rounded-2xl border ${borderColor} shadow-2xl overflow-hidden z-[100]`}
+          style={{ position: 'fixed', right: 16, top: 64, zIndex: 100 }}
+        >
+          <div className={`p-4 border-b ${borderColor} flex items-center justify-between`}>
+            <p className={`font-semibold ${textPrimary}`}>Notifications</p>
+            {notifications && notifications.length > 0 && (
+              <span className="text-xs text-red-500">{notifications.length} new</span>
+            )}
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {notifications && notifications.length > 0 ? (
+              notifications.map((notif, index) => (
+                <div 
+                  key={notif._id || index}
+                  onClick={() => { onMarkAsRead && onMarkAsRead(notif._id); setNotificationsOpen(false); setActiveTab('approvals'); }}
+                  className={`p-4 border-b ${borderColor} hover:${darkMode ? 'bg-slate-700' : 'bg-slate-50'} cursor-pointer transition`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${notif.read === false ? 'bg-red-500' : 'bg-slate-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${textPrimary}`}>{notif.title || 'New Notification'}</p>
+                      <p className={`text-xs ${textSecondary} truncate`}>{notif.message || ''}</p>
+                      <p className={`text-xs ${textMuted} mt-1`}>
+                        {notif.createdAt ? new Date(notif.createdAt).toLocaleString() : 'Just now'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center">
+                <FiBell className={`w-8 h-8 mx-auto mb-2 ${textMuted}`} />
+                <p className={`text-sm ${textSecondary}`}>No notifications</p>
+              </div>
+            )}
+          </div>
+          {notifications && notifications.length > 0 && (
+            <div className={`p-3 border-t ${borderColor}`}>
+              <button 
+                onClick={() => { setActiveTab('approvals'); setNotificationsOpen(false); }}
+                className={`w-full text-center text-sm ${darkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-500'}`}
+              >
+                View All Notifications
+              </button>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      <AnimatePresence>
+        {activeTab === 'profile' && (
+          <motion.aside
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={`fixed left-0 top-16 bottom-0 w-80 ${bgSidebar} border-r ${borderColor} z-[70] overflow-y-auto`}
+          >
+            <div className={`p-4 border-b ${borderColor}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-lg font-semibold ${textPrimary}`}>Profile</h3>
+                <button 
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+                >
+                  <FiX className={`w-5 h-5 ${textSecondary}`} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className={`${bgCard} rounded-2xl border ${borderColor} p-6`}>
+                  <div className="flex flex-col items-center">
+                    <div className={`w-24 h-24 rounded-full ${darkMode ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'} flex items-center justify-center`}>
+                      <span className="text-3xl font-bold text-white">A</span>
+                    </div>
+                    <h3 className={`text-xl font-semibold mt-4 ${textPrimary}`}>Admin User</h3>
+                    <p className={`text-sm ${textSecondary}`}>{user?.email || 'admin@nileagency.com'}</p>
+                    <span className={`mt-2 px-3 py-1 rounded-full text-xs font-medium ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}>
+                      Administrator
+                    </span>
+                  </div>
+                  
+                  <div className={`mt-6 space-y-4`}>
+                    <div>
+                      <label className={`text-sm font-medium ${textMuted}`}>First Name</label>
+                      <p className={`mt-1 ${textPrimary}`}>Admin</p>
+                    </div>
+                    <div>
+                      <label className={`text-sm font-medium ${textMuted}`}>Last Name</label>
+                      <p className={`mt-1 ${textPrimary}`}>User</p>
+                    </div>
+                    <div>
+                      <label className={`text-sm font-medium ${textMuted}`}>Email</label>
+                      <p className={`mt-1 ${textPrimary}`}>{user?.email || 'admin@nileagency.com'}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.aside>
+        )}
+
+        {activeTab === 'settings' && (
+          <motion.aside
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={`fixed left-0 top-16 bottom-0 w-80 ${bgSidebar} border-r ${borderColor} z-[70] overflow-y-auto`}
+          >
+            <div className={`p-4 border-b ${borderColor}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-lg font-semibold ${textPrimary}`}>Settings</h3>
+                <button 
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+                >
+                  <FiX className={`w-5 h-5 ${textSecondary}`} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-medium ${textPrimary}`}>Dark Mode</p>
+                    <p className={`text-sm ${textSecondary}`}>Toggle dark/light theme</p>
+                  </div>
+                  <button 
+                    onClick={() => setDarkMode(!darkMode)}
+                    className={`p-2 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}
+                  >
+                    {darkMode ? <FiMoon className="w-5 h-5 text-amber-400" /> : <FiSun className="w-5 h-5 text-amber-500" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-medium ${textPrimary}`}>Email Notifications</p>
+                    <p className={`text-sm ${textSecondary}`}>Receive email updates</p>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full ${darkMode ? 'bg-indigo-600' : 'bg-indigo-500'} relative cursor-pointer`}>
+                    <div className={`absolute top-1 right-1 w-4 h-4 bg-white rounded-full transition-transform`} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-medium ${textPrimary}`}>Two-Factor Auth</p>
+                    <p className={`text-sm ${textSecondary}`}>Add extra security</p>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full ${darkMode ? 'bg-slate-600' : 'bg-slate-300'} relative cursor-pointer`}>
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform`} />
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition"
+              >
+                <FiLogOut className="w-5 h-5" />
+                <span className="font-medium">Sign Out</span>
+              </button>
+            </div>
+          </motion.aside>
+        )}
+
+        {activeTab === 'editprofile' && (
+          <motion.aside
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={`fixed left-0 top-16 bottom-0 w-80 ${bgSidebar} border-r ${borderColor} z-[70] overflow-y-auto`}
+          >
+            <div className={`p-4 border-b ${borderColor}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-lg font-semibold ${textPrimary}`}>Edit Profile</h3>
+                <button 
+                  onClick={() => setActiveTab('profile')}
+                  className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+                >
+                  <FiX className={`w-5 h-5 ${textSecondary}`} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <p className={`font-medium ${textPrimary} mb-2`}>Profile Picture</p>
+                <div className="flex items-center gap-4">
+                  <div className={`w-20 h-20 rounded-full ${darkMode ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'} flex items-center justify-center`}>
+                    <FiUser className="w-8 h-8 text-white" />
+                  </div>
+                  <button className={`px-4 py-2 rounded-xl text-sm font-medium ${darkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}>
+                    Change
+                  </button>
+                </div>
+              </div>
+              
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <p className={`font-medium ${textPrimary} mb-2`}>First Name</p>
+                <input 
+                  type="text" 
+                  defaultValue={user?.firstName || ''}
+                  className={`w-full px-4 py-3 rounded-xl border ${borderColor} ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200'}`}
+                />
+              </div>
+              
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <p className={`font-medium ${textPrimary} mb-2`}>Last Name</p>
+                <input 
+                  type="text" 
+                  defaultValue={user?.lastName || ''}
+                  className={`w-full px-4 py-3 rounded-xl border ${borderColor} ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200'}`}
+                />
+              </div>
+              
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <p className={`font-medium ${textPrimary} mb-2`}>Email</p>
+                <input 
+                  type="email" 
+                  defaultValue={user?.email || ''}
+                  disabled
+                  className={`w-full px-4 py-3 rounded-xl border ${borderColor} ${darkMode ? 'bg-slate-700/50 border-slate-600 text-white/50' : 'bg-slate-100 border-slate-200 text-slate-500'} cursor-not-allowed`}
+                />
+              </div>
+              
+              <div className={`${bgCard} rounded-2xl border ${borderColor} p-4`}>
+                <p className={`font-medium ${textPrimary} mb-2`}>Phone Number</p>
+                <input 
+                  type="tel" 
+                  defaultValue={user?.phone || ''}
+                  placeholder="+251..."
+                  className={`w-full px-4 py-3 rounded-xl border ${borderColor} ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200'}`}
+                />
+              </div>
+              
+              <button 
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition"
+              >
+                <FiEdit className="w-5 h-5" />
+                <span className="font-medium">Save Changes</span>
+              </button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      <motion.main initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`pt-16 transition-all duration-300 ${hideSidebar ? 'pl-4' : 'lg:pl-64'} ${hideSidebar ? 'max-w-5xl mx-auto' : ''}`} style={{ zIndex: 10 }}>
         <div className="p-4 lg:p-6 relative z-10">
           {children}
         </div>

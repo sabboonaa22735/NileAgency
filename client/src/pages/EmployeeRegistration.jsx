@@ -252,8 +252,6 @@ const STEPS = [
   { id: 3, title: 'Payment', icon: FiCreditCard }
 ];
 
-const APPLICATION_FEE = 5000;
-
 const ETHIOPIAN_REGIONS = [
   'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa',
   'Gambela', 'Harari', 'Oromia', 'Sidama', 'Somali', 'Tigray', 'South West Ethiopia'
@@ -362,6 +360,9 @@ export default function EmployeeRegistration() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [paymentSettings, setPaymentSettings] = useState([]);
   const [telebirrSettings, setTelebirrSettings] = useState({});
+  const [applicationFee, setApplicationFee] = useState(0);
+  const [companyPhone, setCompanyPhone] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -394,23 +395,40 @@ export default function EmployeeRegistration() {
 
   useEffect(() => { loadJobs(); loadPaymentSettings(); }, []);
   
+  useEffect(() => {
+    if (currentStep === 4 && !companyPhone) {
+      loadPaymentSettings();
+    }
+  }, [currentStep]);
+  
   const loadPaymentSettings = async () => {
     try {
-      const [payRes, telebirrRes] = await Promise.all([
-        fetch('/api/admin/public-payment-settings'),
-        fetch('/api/admin/telebirr-settings', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }}).catch(() => ({ ok: false }))
-      ]);
+      const payRes = await fetch('/api/admin/public-payment-settings');
       if (payRes.ok) {
         const data = await payRes.json();
         setPaymentSettings(data);
+        const feeSetting = data.find(s => s.key === 'employee_fee');
+        if (feeSetting) {
+          setApplicationFee(parseInt(feeSetting.value) || 0);
+        }
+        const phoneSetting = data.find(s => s.key === 'company_phone');
+        if (phoneSetting && phoneSetting.value) {
+          setCompanyPhone(phoneSetting.value);
+        } else {
+          setCompanyPhone('+251912345678');
+        }
+        const emailSetting = data.find(s => s.key === 'company_email');
+        if (emailSetting && emailSetting.value) {
+          setCompanyEmail(emailSetting.value);
+        } else {
+          setCompanyEmail('info@nileagency.com');
+        }
       }
-      if (telebirrRes.ok) {
-        const data = await telebirrRes.json();
-        const telebirrObj = {};
-        data.forEach(s => { telebirrObj[s.key] = s.value; });
-        setTelebirrSettings(telebirrObj);
-      }
-    } catch (err) { console.error('Error loading payment settings:', err); }
+    } catch (err) {
+      console.error('Error loading payment settings:', err);
+      setCompanyPhone('+251912345678');
+      setCompanyEmail('info@nileagency.com');
+    }
   };
   
   useEffect(() => {
@@ -547,6 +565,15 @@ export default function EmployeeRegistration() {
   const handleBack = () => currentStep > 1 ? setCurrentStep(prev => prev - 1) : navigate('/role-selection');
   const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login'); };
 
+  useEffect(() => { loadJobs(); loadPaymentSettings(); }, []);
+  
+  useEffect(() => {
+    if (currentStep === 4 && !companyPhone) {
+      console.log('Loading settings for step 4');
+      loadPaymentSettings();
+    }
+  }, [currentStep]);
+
   if (currentStep === 4) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 relative overflow-hidden ${colors.bg}`}>
@@ -569,9 +596,16 @@ export default function EmployeeRegistration() {
               <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
                 <strong>Important:</strong> We will let you know by email within <strong>10 minutes</strong> if approved.
               </p>
-              <p className={`text-sm mt-3 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                Or call us at: <span className="font-bold flex items-center gap-2 mt-1"><FiPhone className="w-4 h-4" /> 0998765432</span>
-              </p>
+              {companyPhone && (
+                <p className={`text-sm mt-3 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  Or call us at: <span className="font-bold flex items-center gap-2 mt-1"><FiPhone className="w-4 h-4" /> {companyPhone}</span>
+                </p>
+              )}
+              {companyEmail && (
+                <p className={`text-sm mt-2 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  Or email: <span className="font-bold">{companyEmail}</span>
+                </p>
+              )}
             </div>
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleLogout} className="w-full py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-500 shadow-lg shadow-cyan-500/25">
               Return to Login
@@ -761,7 +795,7 @@ export default function EmployeeRegistration() {
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 opacity-90" />
                   <div className="relative">
                     <p className="text-white/80 mb-1">Application Fee</p>
-                    <p className="text-5xl font-bold text-white">{APPLICATION_FEE.toLocaleString()} ETB</p>
+                    <p className="text-5xl font-bold text-white">{applicationFee.toLocaleString()} ETB</p>
                   </div>
                 </motion.div>
 

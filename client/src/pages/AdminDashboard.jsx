@@ -1,13 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUsers, FiBriefcase, FiDollarSign, FiMessageSquare, FiLogOut, FiTrash2, FiShield, FiActivity, FiClock, FiEye, FiSend, FiUser, FiArrowLeft, FiPlus, FiEdit, FiFile, FiExternalLink, FiUpload, FiSearch, FiChevronDown, FiMoon, FiSun } from 'react-icons/fi';
+import { FiUsers, FiBriefcase, FiDollarSign, FiMessageSquare, FiLogOut, FiTrash2, FiShield, FiActivity, FiClock, FiEye, FiSend, FiUser, FiArrowLeft, FiPlus, FiEdit, FiFile, FiExternalLink, FiUpload, FiSearch, FiChevronDown, FiMoon, FiSun, FiX, FiCheck } from 'react-icons/fi';
 import { adminApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import { AdminLayout, StatCards, OverviewCards, DataTable, ActivityTimeline, SettingsPage } from '../components/admin';
 
 export default function AdminDashboard() {
+  const getDefaultUserFormData = () => ({
+    email: '', password: '', role: 'employee',
+    firstName: '', middleName: '', lastName: '', phone: '+251', country: 'Ethiopia', region: '', city: '',
+    dateOfBirth: '', gender: '', bio: '', skills: '', experienceLevel: 'none', educationLevel: 'none',
+    expectedSalary: '', availability: 'available', typeOfJob: '', typeOfJobOther: '', languages: [],
+    languageOther: '', address: '', photo: '', resume: '', idCard: '', certificate: '',
+    companyName: '', industry: '', industryOther: '', numberOfEmployees: '', website: '', foundedYear: '',
+    managerName: '', kebele: '', contactEmail: '', contactPhone: '', companyDescription: '',
+    companyLogo: '', businessLicense: '', taxDocument: '', paymentProof: '', paymentMethod: '', bankReference: ''
+  });
+
   const [darkMode, setDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState(null);
@@ -24,19 +35,13 @@ export default function AdminDashboard() {
   const [showAddJobModal, setShowAddJobModal] = useState(false);
   const [showEditJobModal, setShowEditJobModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
-  const [formData, setFormData] = useState({
-    email: '', password: '', role: 'employee', firstName: '', lastName: '',
-    phone: '', address: '', bio: '', skills: '', companyName: '', industry: '',
-    numberOfEmployees: '', website: '', foundedYear: '', managerName: '', city: '', kebele: '',
-    contactEmail: '', contactPhone: '', photo: '', resume: '',
-    idCard: '', certificate: '', companyLogo: '', businessLicense: '', taxDocument: '', paymentProof: ''
-  });
+  const [formData, setFormData] = useState(getDefaultUserFormData);
   const [jobFormData, setJobFormData] = useState({
-    title: '', description: '', requirements: '', skills: '', location: '',
-    jobType: 'full-time', experienceLevel: 'mid', salaryNegotiable: false,
+    title: '', description: '', skills: '',
+    jobType: 'full-time', salaryNegotiable: false, salaryMin: '', salaryMax: '',
     benefits: '', applicationDeadline: '', status: 'active', gender: 'both',
-    level: 'Not required', levelOther: '', country: 'Ethiopia', state: '', city: '',
-    kebele: '', experience: 'Not Required', experienceOther: '', language: [],
+    educationLevel: 'Not required', educationLevelOther: '', country: 'Ethiopia', state: '', city: '',
+    kebele: '', experience: '0 years', language: [],
     languageOther: '', companyName: ''
   });
   const [jobSearchQuery, setJobSearchQuery] = useState('');
@@ -44,6 +49,41 @@ export default function AdminDashboard() {
   const [customJobTitle, setCustomJobTitle] = useState('');
   const ethiopianRegions = ['Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa', 'Gambela', 'Harari', 'Oromia', 'Sidama', 'Somali', 'South West Ethiopia Peoples\' Region', 'Tigray', 'Wolaita', 'Other'];
   const ethiopianJobCategories = ['Accountant', 'Administrative Assistant', 'Architect', 'Banker', 'Business Analyst', 'Cashier', 'Chef', 'Civil Engineer', 'Clinical Officer', 'Computer Operator', 'Construction Worker', 'Consultant', 'Content Writer', 'Customer Service', 'Data Analyst', 'Data Entry Clerk', 'Database Administrator', 'Dental Surgeon', 'Designer', 'Doctor', 'Driver', 'Economist', 'Education Teacher', 'Electrical Engineer', 'Electrician', 'Engineer', 'Finance Manager', 'Financial Analyst', 'General Practitioner', 'Graphic Designer', 'HR Manager', 'HR Officer', 'IT Specialist', 'Journalist', 'Lab Technician', 'Lawyer', 'Librarian', 'Logistics Officer', 'Machine Operator', 'Marketing Manager', 'Marketing Officer', 'Mechanical Engineer', 'Medical Doctor', 'Nurse', 'Office Assistant', 'Pharmacist', 'Physical Therapist', 'Pilot', 'Plumber', 'Procurement Officer', 'Project Manager', 'Psychologist', 'Public Relations Officer', 'Quality Assurance', 'Receptionist', 'Researcher', 'Sales Manager', 'Sales Representative', 'Secretary', 'Security Guard', 'Social Worker', 'Software Developer', 'Statistician', 'Stock Clerk', 'Surveyor', 'Teacher', 'Technician', 'Telecommunications Engineer', 'Tour Guide', 'Training Officer', 'Translator', 'Transport Manager', 'Veterinarian', 'Video Editor', 'Warehouse Manager', 'Web Developer', 'Other'];
+  const employeeExperienceLevels = [
+    { value: 'none', label: 'No Experience' },
+    { value: '1_year', label: '1 Year' },
+    { value: '2_years', label: '2 Years' },
+    { value: '3_years', label: '3 Years' },
+    { value: '4_years', label: '4 Years' },
+    { value: '5_years', label: '5 Years' },
+    { value: 'above_5_years', label: 'Above 5 Years' },
+    { value: 'above_10_years', label: 'Above 10 Years' }
+  ];
+  const employeeEducationLevels = [
+    { value: 'phd', label: 'PHD' }, { value: 'masters', label: 'Masters' },
+    { value: 'degree', label: 'Degree' }, { value: 'diploma', label: 'Diploma' },
+    { value: 'level_1', label: 'Level I' }, { value: 'level_2', label: 'Level II' },
+    { value: 'level_3', label: 'Level III' }, { value: 'level_4', label: 'Level IV' },
+    { value: 'above_level_4', label: 'Above Level IV' }, { value: 'above_grade_8', label: 'Above Grade 8' },
+    { value: 'above_grade_10', label: 'Above Grade 10' }, { value: 'above_grade_12', label: 'Above Grade 12' },
+    { value: 'none', label: 'None of them' }
+  ];
+  const employeeLanguages = [
+    { value: 'oromic', label: 'Oromic' },
+    { value: 'english', label: 'English' },
+    { value: 'amahric', label: 'Amahric' },
+    { value: 'other', label: 'Other' }
+  ];
+  const recruiterIndustries = [
+    { value: '', label: 'Select Industry' },
+    { value: 'technology', label: 'Technology' },
+    { value: 'healthcare', label: 'Healthcare' },
+    { value: 'finance', label: 'Finance' },
+    { value: 'education', label: 'Education' },
+    { value: 'retail', label: 'Retail' },
+    { value: 'manufacturing', label: 'Manufacturing' },
+    { value: 'other', label: 'Other' }
+  ];
   const filteredJobCategories = ethiopianJobCategories.filter(job => job.toLowerCase().includes(jobSearchQuery.toLowerCase()));
 const [chatUsers, setChatUsers] = useState([]);
   const [conversations, setConversations] = useState({});
@@ -57,6 +97,9 @@ const [chatUsers, setChatUsers] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [applicantProfile, setApplicantProfile] = useState(null);
   const [applicationLoading, setApplicationLoading] = useState(false);
+  const [userDetailsTab, setUserDetailsTab] = useState('profile');
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileFormData, setProfileFormData] = useState({});
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -181,8 +224,41 @@ const [chatUsers, setChatUsers] = useState([]);
   };
   const handleBackToApplications = () => { setSelectedApplication(null); setApplicantProfile(null); };
 
+  const initProfileEdit = () => {
+    if (!selectedUser?.profile) return;
+    setProfileFormData({
+      firstName: selectedUser.profile?.firstName || '',
+      lastName: selectedUser.profile?.lastName || '',
+      phone: selectedUser.profile?.phone || '',
+      region: selectedUser.profile?.region || '',
+      city: selectedUser.profile?.city || '',
+      gender: selectedUser.profile?.gender || '',
+      dateOfBirth: selectedUser.profile?.dateOfBirth || '',
+      skills: selectedUser.profile?.skills?.join(', ') || '',
+      experienceLevel: selectedUser.profile?.experienceLevel || '',
+      educationLevel: selectedUser.profile?.educationLevel || '',
+      typeOfJob: selectedUser.profile?.typeOfJob || '',
+      companyName: selectedUser.profile?.companyName || '',
+      industry: selectedUser.profile?.industry || '',
+      numberOfEmployees: selectedUser.profile?.numberOfEmployees || '',
+    });
+    setEditingProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!selectedUser?.user?._id) return;
+    try {
+      const payload = { ...profileFormData };
+      if (payload.skills) payload.skills = payload.skills.split(',').map(s => s.trim()).filter(s => s);
+      await adminApi.updateUser(selectedUser.user._id, { profile: payload });
+      setEditingProfile(false);
+      loadData();
+      alert('Profile updated');
+    } catch (err) { console.error(err); alert('Update failed'); }
+  };
+
   const resetForm = () => {
-    setFormData({ email: '', password: '', role: 'employee', firstName: '', lastName: '', phone: '', address: '', bio: '', skills: '', companyName: '', industry: '', numberOfEmployees: '', website: '', foundedYear: '', managerName: '', city: '', kebele: '', contactEmail: '', contactPhone: '', photo: '', resume: '', idCard: '', certificate: '', companyLogo: '', businessLicense: '', taxDocument: '', paymentProof: '' });
+    setFormData(getDefaultUserFormData());
   };
   const handleOpenAddModal = () => { resetForm(); setShowAddUserModal(true); };
   const handleOpenEditModal = async (userId) => {
@@ -190,18 +266,27 @@ const [chatUsers, setChatUsers] = useState([]);
       const { data } = await adminApi.getUser(userId);
       setEditingUser(data);
       setFormData({
+        ...getDefaultUserFormData(),
         email: data.user.email, password: '', role: data.user.role,
-        firstName: data.profile?.firstName || '', lastName: data.profile?.lastName || '',
-        phone: data.profile?.phone || '', address: data.profile?.address || '',
+        firstName: data.profile?.firstName || '', middleName: data.profile?.middleName || '', lastName: data.profile?.lastName || '',
+        phone: data.profile?.phone || '+251', country: data.profile?.country || 'Ethiopia', region: data.profile?.region || '', city: data.profile?.city || '',
+        dateOfBirth: data.profile?.dateOfBirth || '', gender: data.profile?.gender || '', address: data.profile?.address || '',
         bio: data.profile?.bio || '', skills: Array.isArray(data.profile?.skills) ? data.profile.skills.join(', ') : '',
-        companyName: data.profile?.companyName || '', industry: data.profile?.industry || '',
-        numberOfEmployees: data.profile?.numberOfEmployees || '', website: data.profile?.website || '', foundedYear: data.profile?.foundedYear || '',
-        managerName: data.profile?.managerName || '', city: data.profile?.city || '', kebele: data.profile?.kebele || '',
+        experienceLevel: data.profile?.experienceLevel || 'none', educationLevel: data.profile?.educationLevel || 'none',
+        expectedSalary: data.profile?.expectedSalary || '', availability: data.profile?.availability || 'available',
+        typeOfJob: data.profile?.typeOfJob || '', typeOfJobOther: data.profile?.typeOfJobOther || '',
+        languages: Array.isArray(data.profile?.languages) ? data.profile.languages : [],
+        languageOther: data.profile?.languageOther || '',
+        companyName: data.profile?.companyName || '', companyDescription: data.profile?.companyDescription || '', industry: data.profile?.industry || '',
+        industryOther: data.profile?.industryOther || '', numberOfEmployees: data.profile?.numberOfEmployees || '',
+        website: data.profile?.website || '', foundedYear: data.profile?.foundedYear || '',
+        managerName: data.profile?.managerName || '', kebele: data.profile?.kebele || '',
         contactEmail: data.profile?.contactEmail || '', contactPhone: data.profile?.contactPhone || '',
         photo: data.profile?.photo || '', resume: data.profile?.resume || '',
         idCard: data.profile?.idCard || '', certificate: data.profile?.certificate || '',
         companyLogo: data.profile?.companyLogo || '', businessLicense: data.profile?.businessLicense || '',
-        taxDocument: data.profile?.taxDocument || '', paymentProof: data.profile?.paymentProof || ''
+        taxDocument: data.profile?.taxDocument || '', paymentProof: data.profile?.paymentProof || '',
+        paymentMethod: data.profile?.paymentMethod || '', bankReference: data.profile?.bankReference || ''
       });
       setShowEditUserModal(true);
     } catch (err) { console.error(err); }
@@ -214,10 +299,30 @@ const [chatUsers, setChatUsers] = useState([]);
       setFormData(prev => ({ ...prev, [fieldName]: data.url }));
     } catch (err) { alert('Failed to upload file'); }
   };
+  const handleUserFieldChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+  const handleLanguageToggle = (language) => {
+    setFormData((prev) => {
+      const current = prev.languages || [];
+      return {
+        ...prev,
+        languages: current.includes(language) ? current.filter((item) => item !== language) : [...current, language]
+      };
+    });
+  };
+  const buildUserPayload = () => ({
+    ...formData,
+    industry: formData.industry === 'other' ? formData.industryOther : formData.industry,
+    typeOfJob: formData.typeOfJob === 'other' ? formData.typeOfJobOther : formData.typeOfJob,
+    skills: formData.skills ? formData.skills.split(',').map((s) => s.trim()).filter((s) => s) : [],
+    languages: formData.languages || []
+  });
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...formData, skills: formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(s => s) : [] };
+      const payload = buildUserPayload();
       if (!payload.password) { alert('Password is required'); return; }
       await adminApi.createUser(payload);
       setShowAddUserModal(false); resetForm(); loadData(); alert('User created successfully');
@@ -226,7 +331,7 @@ const [chatUsers, setChatUsers] = useState([]);
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...formData, skills: formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(s => s) : [] };
+      const payload = buildUserPayload();
       if (!payload.password) delete payload.password;
       await adminApi.updateUser(editingUser.user._id, payload);
       setShowEditUserModal(false); setEditingUser(null); resetForm(); loadData(); alert('User updated successfully');
@@ -235,39 +340,58 @@ const [chatUsers, setChatUsers] = useState([]);
   const handleCreateJob = async (e) => {
     e.preventDefault();
     try {
+      const normalizedEducationLevel =
+        jobFormData.educationLevel === 'Level'
+          ? `Level ${jobFormData.educationLevelOther}`.trim()
+          : jobFormData.educationLevel === 'Other'
+            ? jobFormData.educationLevelOther
+            : jobFormData.educationLevel;
+
       const payload = {
         title: jobFormData.title, description: jobFormData.description,
-        requirements: jobFormData.requirements ? jobFormData.requirements.split(',').map(s => s.trim()).filter(s => s) : [],
         skills: jobFormData.skills ? jobFormData.skills.split(',').map(s => s.trim()).filter(s => s) : [],
-        location: jobFormData.location, jobType: jobFormData.jobType, experienceLevel: jobFormData.experienceLevel,
-        salary: { negotiable: jobFormData.salaryNegotiable, currency: 'USD' },
+        location: [jobFormData.city, jobFormData.kebele].filter(Boolean).join(', '),
+        jobType: jobFormData.jobType,
+        salary: { min: Number(jobFormData.salaryMin) || 0, max: Number(jobFormData.salaryMax) || 0, currency: 'USD' },
+        salaryNegotiable: jobFormData.salaryNegotiable,
         benefits: jobFormData.benefits ? jobFormData.benefits.split(',').map(s => s.trim()).filter(s => s) : [],
-        applicationDeadline: jobFormData.applicationDeadline || null, status: 'active',
-        gender: jobFormData.gender, level: jobFormData.level === 'other' ? jobFormData.levelOther : jobFormData.level,
+        applicationDeadline: jobFormData.applicationDeadline || null, status: jobFormData.status,
+        gender: jobFormData.gender,
         country: jobFormData.country, state: jobFormData.state, city: jobFormData.city,
-        kebele: jobFormData.kebele, experience: jobFormData.experience === 'other' ? jobFormData.experienceOther : jobFormData.experience,
+        kebele: jobFormData.kebele, experience: jobFormData.experience,
+        educationLevel: normalizedEducationLevel,
         language: jobFormData.language, languageOther: jobFormData.languageOther, companyName: jobFormData.companyName
       };
       await adminApi.createJob(payload);
       setShowAddJobModal(false);
-      setJobFormData({ title: '', description: '', requirements: '', skills: '', location: '', jobType: 'full-time', experienceLevel: 'mid', salaryNegotiable: false, benefits: '', applicationDeadline: '', status: 'active', gender: 'both', level: 'Not required', levelOther: '', country: 'Ethiopia', state: '', city: '', kebele: '', experience: 'Not Required', experienceOther: '', language: [], languageOther: '', companyName: '' });
+      setJobFormData({ title: '', description: '', skills: '', jobType: 'full-time', salaryNegotiable: false, salaryMin: '', salaryMax: '', benefits: '', applicationDeadline: '', status: 'active', gender: 'both', educationLevel: 'Not required', educationLevelOther: '', country: 'Ethiopia', state: '', city: '', kebele: '', experience: '0 years', language: [], languageOther: '', companyName: '' });
       setCustomJobTitle(''); loadData(); alert('Job created successfully');
     } catch (err) { alert(err.response?.data?.message || 'Failed to create job'); }
   };
   const handleOpenEditJobModal = (job) => {
     setEditingJob(job);
     setCustomJobTitle(job.title && !ethiopianJobCategories.includes(job.title) ? job.title : '');
+    const isLevelEducation = (job.educationLevel || '').toLowerCase().startsWith('level ');
+    const matchedEducationLevel = ['Phd', 'Masters', 'Degree', 'Diploma', 'Above grade 12', 'Above grade 10', 'Above grade 8', 'Not required'].includes(job.educationLevel)
+      ? job.educationLevel
+      : isLevelEducation
+        ? 'Level'
+        : 'Other';
     setJobFormData({
       title: job.title || '', description: job.description || '',
-      requirements: Array.isArray(job.requirements) ? job.requirements.join(', ') : '',
       skills: Array.isArray(job.skills) ? job.skills.join(', ') : '',
-      location: job.location || '', jobType: job.jobType || 'full-time',
-      experienceLevel: job.experienceLevel || 'mid', salaryNegotiable: job.salary?.negotiable || false,
+      jobType: job.jobType || 'full-time',
+      salaryNegotiable: job.salaryNegotiable || false,
+      salaryMin: job.salary?.min || '',
+      salaryMax: job.salary?.max || '',
       benefits: Array.isArray(job.benefits) ? job.benefits.join(', ') : '',
       applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
-      status: job.status || 'active', gender: job.gender || 'both', level: job.level || 'Not required',
-      levelOther: '', country: job.country || 'Ethiopia', state: job.state || '', city: job.city || '',
-      experience: job.experience || 'Not Required', experienceOther: '', phone: job.phone || '', email: job.email || '',
+      status: job.status || 'active', gender: job.gender || 'both',
+      educationLevel: matchedEducationLevel,
+      educationLevelOther: isLevelEducation ? job.educationLevel.replace(/^Level\s*/i, '') : (matchedEducationLevel === 'Other' ? (job.educationLevel || '') : ''),
+      country: job.country || 'Ethiopia', state: job.state || '', city: job.city || '',
+      kebele: job.kebele || '',
+      experience: job.experienceLevel || '0 years', phone: job.phone || '', email: job.email || '',
       companyName: job.companyName || ''
     });
     setShowEditJobModal(true);
@@ -275,17 +399,27 @@ const [chatUsers, setChatUsers] = useState([]);
   const handleUpdateJob = async (e) => {
     e.preventDefault();
     try {
+      const normalizedEducationLevel =
+        jobFormData.educationLevel === 'Level'
+          ? `Level ${jobFormData.educationLevelOther}`.trim()
+          : jobFormData.educationLevel === 'Other'
+            ? jobFormData.educationLevelOther
+            : jobFormData.educationLevel;
+
       const payload = {
         title: jobFormData.title, description: jobFormData.description,
-        requirements: jobFormData.requirements ? jobFormData.requirements.split(',').map(s => s.trim()).filter(s => s) : [],
         skills: jobFormData.skills ? jobFormData.skills.split(',').map(s => s.trim()).filter(s => s) : [],
-        location: jobFormData.location, jobType: jobFormData.jobType, experienceLevel: jobFormData.experienceLevel,
-        salary: { negotiable: jobFormData.salaryNegotiable, currency: 'USD' },
+        location: [jobFormData.city, jobFormData.kebele].filter(Boolean).join(', '),
+        jobType: jobFormData.jobType,
+        experienceLevel: jobFormData.experience,
+        educationLevel: normalizedEducationLevel,
+        salary: { min: Number(jobFormData.salaryMin) || 0, max: Number(jobFormData.salaryMax) || 0, currency: 'USD' },
+        salaryNegotiable: jobFormData.salaryNegotiable,
         benefits: jobFormData.benefits ? jobFormData.benefits.split(',').map(s => s.trim()).filter(s => s) : [],
         applicationDeadline: jobFormData.applicationDeadline || null, status: jobFormData.status,
-        gender: jobFormData.gender, level: jobFormData.level === 'other' ? jobFormData.levelOther : jobFormData.level,
+        gender: jobFormData.gender,
         country: jobFormData.country, state: jobFormData.state, city: jobFormData.city,
-        experience: jobFormData.experience === 'other' ? jobFormData.experienceOther : jobFormData.experience,
+        kebele: jobFormData.kebele,
         phone: jobFormData.phone, email: jobFormData.email, companyName: jobFormData.companyName
       };
       await adminApi.updateJob(editingJob._id, payload);
@@ -525,6 +659,133 @@ const renderPaymentsTab = () => (
     </motion.div>
   );
 
+  const renderApplicationsTab = () => {
+    if (selectedApplication) {
+      return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className={`text-2xl font-bold ${textPrimary}`}>Application Details</h2>
+              <p className={`${textSecondary} mt-1`}>Review applicant information and update status.</p>
+            </div>
+            <button
+              onClick={handleBackToApplications}
+              className={`px-4 py-2.5 rounded-xl ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-900'} transition`}
+            >
+              Back
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border ${borderColor} ${bgCard} p-6 space-y-3`}>
+              <h3 className={`text-lg font-semibold ${textPrimary}`}>Application</h3>
+              <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Job:</span> {selectedApplication.jobId?.title || 'N/A'}</p>
+              <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Applicant:</span> {selectedApplication.employeeId?.firstName || applicantProfile?.profile?.firstName || 'N/A'} {selectedApplication.employeeId?.lastName || applicantProfile?.profile?.lastName || ''}</p>
+              <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Email:</span> {selectedApplication.email || applicantProfile?.user?.email || 'N/A'}</p>
+              <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Phone:</span> {selectedApplication.phone || applicantProfile?.profile?.phone || 'N/A'}</p>
+              <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>City:</span> {selectedApplication.city || applicantProfile?.profile?.city || 'N/A'}</p>
+              <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Status:</span> {selectedApplication.status || 'pending'}</p>
+              <div>
+                <p className={`font-medium mb-2 ${textPrimary}`}>Cover Letter</p>
+                <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-700/60 text-slate-200' : 'bg-slate-50 text-slate-700'}`}>
+                  {selectedApplication.coverLetter || 'No cover letter provided.'}
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border ${borderColor} ${bgCard} p-6 space-y-3`}>
+              <h3 className={`text-lg font-semibold ${textPrimary}`}>Applicant Profile</h3>
+              {applicationLoading ? (
+                <p className={textSecondary}>Loading profile...</p>
+              ) : applicantProfile?.profile ? (
+                <>
+                  <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Experience:</span> {applicantProfile.profile.experienceLevel || 'N/A'}</p>
+                  <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Education:</span> {applicantProfile.profile.educationLevel || 'N/A'}</p>
+                  <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Skills:</span> {applicantProfile.profile.skills?.join(', ') || 'N/A'}</p>
+                  <p className={textSecondary}><span className={`font-medium ${textPrimary}`}>Bio:</span> {applicantProfile.profile.bio || 'N/A'}</p>
+                </>
+              ) : (
+                <p className={textSecondary}>No applicant profile data found.</p>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => handleApproveApplication(selectedApplication._id)}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleRejectApplication(selectedApplication._id)}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      );
+    }
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div className="mb-6">
+          <h2 className={`text-2xl font-bold ${textPrimary}`}>Applications</h2>
+          <p className={`${textSecondary} mt-1`}>Review submitted job applications.</p>
+        </div>
+
+        {applications.length === 0 ? (
+          <div className={`rounded-2xl border ${borderColor} ${bgCard} p-12 text-center`}>
+            <FiFile className={`w-12 h-12 mx-auto mb-4 ${textMuted}`} />
+            <p className={textSecondary}>No applications found.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {applications.map((app, index) => (
+              <motion.div
+                key={app._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04 }}
+                className={`rounded-2xl border ${borderColor} ${bgCard} p-5`}
+              >
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h3 className={`font-semibold ${textPrimary}`}>{app.jobId?.title || 'Untitled Job'}</h3>
+                    <p className={`text-sm ${textSecondary} mt-1`}>
+                      {app.firstName || app.employeeId?.firstName || 'Applicant'} {app.lastName || app.employeeId?.lastName || ''}
+                    </p>
+                    <p className={`text-xs ${textMuted} mt-1`}>
+                      {app.email || 'No email'} • {app.phone || 'No phone'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs ${
+                      app.status === 'accepted'
+                        ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                        : app.status === 'rejected'
+                          ? (darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700')
+                          : (darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700')
+                    }`}>
+                      {app.status || 'pending'}
+                    </span>
+                    <button
+                      onClick={() => handleViewApplication(app)}
+                      className={`px-4 py-2 rounded-xl ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-900'} transition`}
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    );
+  };
+
   const renderPaymentSettingsModal = () => {
     if (!showPaymentSettingModal) return null;
     return (
@@ -675,122 +936,819 @@ const renderPaymentsTab = () => (
             </button>
           </div>
           <div className="p-6 space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
-                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Personal Information</h3>
-                <div className="space-y-2">
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Name:</span> {user?.firstName} {user?.lastName}</p>
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Email:</span> {user?.email}</p>
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Phone:</span> {profile?.phone || 'N/A'}</p>
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Region:</span> {profile?.region || 'N/A'}</p>
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">City:</span> {profile?.city || 'N/A'}</p>
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Gender:</span> {profile?.gender || 'N/A'}</p>
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Date of Birth:</span> {profile?.dateOfBirth || 'N/A'}</p>
-                </div>
-              </div>
-              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
-                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Professional Information</h3>
-                <div className="space-y-2">
-                  {user?.role === 'employee' && (
-                    <>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Type of Job:</span> {profile?.typeOfJob || 'N/A'}</p>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Languages:</span> {profile?.languages?.join(', ') || 'N/A'}</p>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Experience:</span> {profile?.experienceLevel || 'N/A'}</p>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Education:</span> {profile?.educationLevel || 'N/A'}</p>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Skills:</span> {profile?.skills?.join(', ') || 'N/A'}</p>
-                    </>
-                  )}
-                  {user?.role === 'recruiter' && (
-                    <>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Company:</span> {profile?.companyName || 'N/A'}</p>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Industry:</span> {profile?.industry || 'N/A'}</p>
-                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Employees:</span> {profile?.numberOfEmployees || 'N/A'}</p>
-                    </>
-                  )}
-                </div>
-              </div>
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => { setUserDetailsTab('profile'); setEditingProfile(false); }} className={`px-4 py-2 rounded-lg font-medium ${userDetailsTab === 'profile' ? 'bg-indigo-600 text-white' : darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100'}`}>Profile</button>
+              <button onClick={() => { setUserDetailsTab('registration'); setEditingProfile(false); }} className={`px-4 py-2 rounded-lg font-medium ${userDetailsTab === 'registration' ? 'bg-indigo-600 text-white' : darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100'}`}>Registration</button>
+              {userDetailsTab === 'profile' && !editingProfile && <button onClick={initProfileEdit} className={`ml-auto px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100'}`}>Edit</button>}
             </div>
-            {user?.role === 'employee' && (
-              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
-                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Documents</h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Resume</p>
-                    {profile?.resume ? (
-                      <a href={profile.resume} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Resume</a>
-                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
-                  </div>
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>ID Card</p>
-                    {profile?.idCard ? (
-                      <a href={profile.idCard} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View ID Card</a>
-                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
-                  </div>
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Certificate</p>
-                    {profile?.certificate ? (
-                      <a href={profile.certificate} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Certificate</a>
-                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
-                  </div>
+
+            {userDetailsTab === 'profile' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                  <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Personal Information</h3>
+                  {editingProfile ? (
+                    <div className="space-y-3">
+                      <div><label className="text-sm">First Name</label><input type="text" value={profileFormData.firstName} onChange={(e) => setProfileFormData({...profileFormData, firstName: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                      <div><label className="text-sm">Last Name</label><input type="text" value={profileFormData.lastName} onChange={(e) => setProfileFormData({...profileFormData, lastName: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                      <div><label className="text-sm">Phone</label><input type="text" value={profileFormData.phone} onChange={(e) => setProfileFormData({...profileFormData, phone: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                      <div><label className="text-sm">Region</label><input type="text" value={profileFormData.region} onChange={(e) => setProfileFormData({...profileFormData, region: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                      <div><label className="text-sm">City</label><input type="text" value={profileFormData.city} onChange={(e) => setProfileFormData({...profileFormData, city: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Name:</span> {user?.firstName} {user?.lastName}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Email:</span> {user?.email}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Phone:</span> {profile?.phone || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Region:</span> {profile?.region || 'N/A'}</p>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">City:</span> {profile?.city || 'N/A'}</p>
+                    </div>
+                  )}
+                </div>
+                <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                  <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Professional Information</h3>
+                  {editingProfile ? (
+                    <div className="space-y-3">
+                      {user?.role === 'employee' && (
+                        <>
+                          <div><label className="text-sm">Type of Job</label><input type="text" value={profileFormData.typeOfJob} onChange={(e) => setProfileFormData({...profileFormData, typeOfJob: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                          <div><label className="text-sm">Skills (comma separated)</label><input type="text" value={profileFormData.skills} onChange={(e) => setProfileFormData({...profileFormData, skills: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                          <div><label className="text-sm">Experience</label><input type="text" value={profileFormData.experienceLevel} onChange={(e) => setProfileFormData({...profileFormData, experienceLevel: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                          <div><label className="text-sm">Education</label><input type="text" value={profileFormData.educationLevel} onChange={(e) => setProfileFormData({...profileFormData, educationLevel: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                        </>
+                      )}
+                      {user?.role === 'recruiter' && (
+                        <>
+                          <div><label className="text-sm">Company</label><input type="text" value={profileFormData.companyName} onChange={(e) => setProfileFormData({...profileFormData, companyName: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                          <div><label className="text-sm">Industry</label><input type="text" value={profileFormData.industry} onChange={(e) => setProfileFormData({...profileFormData, industry: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                          <div><label className="text-sm">Employees</label><input type="text" value={profileFormData.numberOfEmployees} onChange={(e) => setProfileFormData({...profileFormData, numberOfEmployees: e.target.value})} className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600" /></div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {user?.role === 'employee' && (
+                        <>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Type:</span> {profile?.typeOfJob || 'N/A'}</p>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Skills:</span> {profile?.skills?.join(', ') || 'N/A'}</p>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Experience:</span> {profile?.experienceLevel || 'N/A'}</p>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Education:</span> {profile?.educationLevel || 'N/A'}</p>
+                        </>
+                      )}
+                      {user?.role === 'recruiter' && (
+                        <>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Company:</span> {profile?.companyName || 'N/A'}</p>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Industry:</span> {profile?.industry || 'N/A'}</p>
+                          <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Employees:</span> {profile?.numberOfEmployees || 'N/A'}</p>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
-            {user?.role === 'recruiter' && (
-              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
-                <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Company Documents</h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Company Logo</p>
-                    {profile?.companyLogo ? (
-                      <a href={profile.companyLogo} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Logo</a>
-                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
-                  </div>
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Business License</p>
-                    {profile?.businessLicense ? (
-                      <a href={profile.businessLicense} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View License</a>
-                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
-                  </div>
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Tax Document</p>
-                    {profile?.taxDocument ? (
-                      <a href={profile.taxDocument} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Tax Document</a>
-                    ) : <p className={darkMode ? 'text-slate-500' : 'text-slate-400'}>Not uploaded</p>}
-                  </div>
+
+            {userDetailsTab === 'registration' && (
+              <div className="space-y-6">
+                <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                  <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Bio</h3>
+                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}>{profile?.bio || 'No bio'}</p>
                 </div>
-              </div>
-            )}
-            <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
-              <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Account Status</h3>
-              <div className="space-y-2">
-                <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Status:</span> 
-                  <span className={`ml-2 px-2 py-1 rounded-full text-sm ${user?.status === 'approved' ? 'bg-green-500/20 text-green-500' : user?.status === 'rejected' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
-                    {user?.status || 'pending'}
-                  </span>
-                </p>
-                <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Registration Step:</span> {user?.registrationStatus || 'N/A'}</p>
-                <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Registration Date:</span> {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
-                {payment && (
-                  <p className={darkMode ? 'text-slate-300' : 'text-slate-700'}><span className="font-medium">Payment:</span> ETB {payment.amount} ({payment.status})</p>
+                {user?.role === 'employee' && (
+                  <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                    <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Documents</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div><p className="text-sm">Resume</p>{profile?.resume ? <a href={profile.resume} target="_blank" className="text-cyan-500">View</a> : <p>N/A</p>}</div>
+                      <div><p className="text-sm">ID Card</p>{profile?.idCard ? <a href={profile.idCard} target="_blank" className="text-cyan-500">View</a> : <p>N/A</p>}</div>
+                      <div><p className="text-sm">Certificate</p>{profile?.certificate ? <a href={profile.certificate} target="_blank" className="text-cyan-500">View</a> : <p>N/A</p>}</div>
+                    </div>
+                  </div>
                 )}
+                {user?.role === 'recruiter' && (
+                  <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                    <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Company Documents</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div><p className="text-sm">Logo</p>{profile?.companyLogo ? <a href={profile.companyLogo} target="_blank" className="text-cyan-500">View</a> : <p>N/A</p>}</div>
+                      <div><p className="text-sm">License</p>{profile?.businessLicense ? <a href={profile.businessLicense} target="_blank" className="text-cyan-500">View</a> : <p>N/A</p>}</div>
+                      <div><p className="text-sm">Tax Doc</p>{profile?.taxDocument ? <a href={profile.taxDocument} target="_blank" className="text-cyan-500">View</a> : <p>N/A</p>}</div>
+                    </div>
+                  </div>
+                )}
+                <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
+                  <h3 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>Account Status</h3>
+                  <p><span className="font-medium">Status:</span> {user?.status || 'pending'}</p>
+                  <p><span className="font-medium">Registration Step:</span> {user?.registrationStatus || 'N/A'}</p>
+                  <p><span className="font-medium">Date:</span> {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
+                  {payment && <p><span className="font-medium">Payment:</span> ETB {payment.amount}</p>}
+                </div>
+              </div>
+            )}
+
+            {editingProfile && (
+              <div className="flex gap-3">
+                <button onClick={() => setEditingProfile(false)} className="flex-1 py-3 bg-slate-600 rounded-xl">Cancel</button>
+                <button onClick={handleSaveProfile} className="flex-1 py-3 bg-indigo-600 rounded-xl">Save</button>
+              </div>
+            )}
+
+            {!editingProfile && (
+              <div className="flex gap-3">
+                <motion.button whileHover={{ scale: 1.02 }} onClick={() => handleApprove(user?._id)} className="flex-1 py-3 bg-green-600 rounded-xl flex items-center justify-center gap-2">
+                  <FiCheck className="w-5 h-5" /> Approve
+                </motion.button>
+                <motion.button whileHover={{ scale: 1.02 }} onClick={() => handleReject(user?._id)} className="flex-1 py-3 bg-red-600 rounded-xl flex items-center justify-center gap-2">
+                  <FiTrash2 className="w-5 h-5" /> Reject
+                </motion.button>
+                <motion.button whileHover={{ scale: 1.02 }} onClick={closeModal} className="flex-1 py-3 bg-slate-600 rounded-xl">Close</motion.button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  };
+
+  const renderUserFormModal = () => {
+    const isOpen = showAddUserModal || showEditUserModal;
+    if (!isOpen) return null;
+
+    const isEditing = showEditUserModal;
+    const closeUserFormModal = () => {
+      setShowAddUserModal(false);
+      setShowEditUserModal(false);
+      setEditingUser(null);
+      resetForm();
+    };
+
+    const renderUploadCard = (label, fieldName, hint, required = false, accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx') => (
+      <label
+        className={`block rounded-2xl border-2 border-dashed p-5 cursor-pointer transition ${
+          formData[fieldName]
+            ? darkMode
+              ? 'border-indigo-400 bg-indigo-500/10'
+              : 'border-indigo-500 bg-indigo-50'
+            : darkMode
+              ? 'border-slate-600 bg-slate-900/30 hover:border-slate-500'
+              : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+        }`}
+      >
+        <input type="file" accept={accept} className="hidden" onChange={(e) => handleFileUpload(e, fieldName)} />
+        <div className="flex items-start gap-4">
+          <div className={`mt-1 flex h-12 w-12 items-center justify-center rounded-2xl ${formData[fieldName] ? 'bg-gradient-to-br from-indigo-500 to-cyan-500 text-white' : darkMode ? 'bg-slate-700 text-slate-300' : 'bg-white text-slate-600'}`}>
+            {formData[fieldName] ? <FiCheck className="w-5 h-5" /> : <FiUpload className="w-5 h-5" />}
+          </div>
+          <div className="min-w-0">
+            <p className={`font-medium ${textPrimary}`}>{label}{required ? ' *' : ''}</p>
+            <p className={`text-sm mt-1 break-all ${formData[fieldName] ? (darkMode ? 'text-indigo-300' : 'text-indigo-700') : textSecondary}`}>
+              {formData[fieldName] ? formData[fieldName].split('/').pop() : hint}
+            </p>
+          </div>
+        </div>
+      </label>
+    );
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onClick={closeUserFormModal}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border ${borderColor} ${darkMode ? 'bg-slate-800' : 'bg-white'} p-6 shadow-2xl`}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-2xl font-bold ${textPrimary}`}>{isEditing ? 'Edit User' : 'Add User'}</h2>
+              <p className={`mt-1 ${textSecondary}`}>Use the same registration-style inputs for employees and recruiters, including document uploads.</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeUserFormModal}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form onSubmit={isEditing ? handleUpdateUser : handleCreateUser} className="space-y-6">
+            <div className={`rounded-3xl border p-5 ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50/80'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Account</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleUserFieldChange}
+                    className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Role</label>
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleUserFieldChange}
+                    className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="recruiter">Recruiter</option>
+                  </select>
+                </div>
+                <div className="md:col-span-3">
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>
+                    Password {isEditing ? '(leave blank to keep current)' : ''}
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleUserFieldChange}
+                    className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                    required={!isEditing}
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex gap-3">
-              {user?.status !== 'approved' && (
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => handleApprove(user?._id)} className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition">
-                  Approve
-                </motion.button>
-              )}
-              {user?.status !== 'rejected' && user?.status !== 'approved' && (
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => handleReject(user?._id)} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition">
-                  Reject
-                </motion.button>
-              )}
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={closeModal} className="flex-1 py-3 bg-slate-600 hover:bg-slate-700 text-white font-medium rounded-xl transition">
-                Close
-              </motion.button>
+
+            {formData.role === 'employee' ? (
+              <>
+                <div className={`rounded-3xl border p-5 ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50/80'}`}>
+                  <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Employee Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>First Name</label>
+                      <input name="firstName" value={formData.firstName} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Middle Name</label>
+                      <input name="middleName" value={formData.middleName} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Last Name</label>
+                      <input name="lastName" value={formData.lastName} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Phone Number</label>
+                      <input name="phone" value={formData.phone} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Date of Birth</label>
+                      <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Gender</label>
+                      <select name="gender" value={formData.gender} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Region</label>
+                      <select name="region" value={formData.region} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        <option value="">Select Region</option>
+                        {ethiopianRegions.map((region) => <option key={region} value={region}>{region}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>City</label>
+                      <input name="city" value={formData.city} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Availability</label>
+                      <select name="availability" value={formData.availability} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        <option value="available">Available</option>
+                        <option value="not_available">Not Available</option>
+                        <option value="internship">Internship</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Experience Level</label>
+                      <select name="experienceLevel" value={formData.experienceLevel} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        {employeeExperienceLevels.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Education Level</label>
+                      <select name="educationLevel" value={formData.educationLevel} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        {employeeEducationLevels.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Expected Salary</label>
+                      <input name="expectedSalary" value={formData.expectedSalary} onChange={handleUserFieldChange} placeholder="Optional" className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Type of Job</label>
+                      <select name="typeOfJob" value={formData.typeOfJob} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required>
+                        <option value="">Select a job type</option>
+                        {ethiopianJobCategories.map((job) => <option key={job} value={job === 'Other' ? 'other' : job}>{job}</option>)}
+                      </select>
+                    </div>
+                    {formData.typeOfJob === 'other' && (
+                      <div className="md:col-span-2">
+                        <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Specify Job Type</label>
+                        <input name="typeOfJobOther" value={formData.typeOfJobOther} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                      </div>
+                    )}
+                    <div className="md:col-span-3">
+                      <label className={`block text-sm font-medium mb-3 ${textSecondary}`}>Languages</label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {employeeLanguages.map((language) => (
+                          <label key={language.value} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer ${darkMode ? 'border-slate-700 bg-slate-800/60 text-slate-100' : 'border-slate-200 bg-white text-slate-900'}`}>
+                            <input type="checkbox" checked={formData.languages.includes(language.value)} onChange={() => handleLanguageToggle(language.value)} className="accent-indigo-600" />
+                            <span>{language.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    {formData.languages.includes('other') && (
+                      <div className="md:col-span-3">
+                        <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Specify Other Language</label>
+                        <input name="languageOther" value={formData.languageOther} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                      </div>
+                    )}
+                    <div className="md:col-span-3">
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Skills</label>
+                      <input name="skills" value={formData.skills} onChange={handleUserFieldChange} placeholder="JavaScript, React, Node.js..." className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Bio / Summary</label>
+                      <textarea name="bio" rows="4" value={formData.bio} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`rounded-3xl border p-5 ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50/80'}`}>
+                  <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Employee Documents</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderUploadCard('Profile Photo', 'photo', 'PNG or JPG')}
+                    {renderUploadCard('Resume / CV', 'resume', 'PDF, DOC, or DOCX')}
+                    {renderUploadCard('ID Card / Passport (Fayda)', 'idCard', 'PDF or image', true)}
+                    {renderUploadCard('Certificates', 'certificate', 'PDF or image')}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`rounded-3xl border p-5 ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50/80'}`}>
+                  <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Recruiter Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Company Name</label>
+                      <input name="companyName" value={formData.companyName} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Industry</label>
+                      <select name="industry" value={formData.industry} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        {recruiterIndustries.map((industry) => <option key={industry.value || 'empty'} value={industry.value}>{industry.label}</option>)}
+                      </select>
+                    </div>
+                    {formData.industry === 'other' && (
+                      <div className="md:col-span-2">
+                        <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Specify Industry</label>
+                        <input name="industryOther" value={formData.industryOther} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                      </div>
+                    )}
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Founded Year</label>
+                      <input name="foundedYear" value={formData.foundedYear} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Website</label>
+                      <input name="website" value={formData.website} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Manager / CEO Name</label>
+                      <input name="managerName" value={formData.managerName} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Number of Employees</label>
+                      <input name="numberOfEmployees" value={formData.numberOfEmployees} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>City</label>
+                      <input name="city" value={formData.city} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Kebele</label>
+                      <input name="kebele" value={formData.kebele} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Contact Email</label>
+                      <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Contact Phone</label>
+                      <input name="contactPhone" value={formData.contactPhone} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Company Description</label>
+                      <textarea name="companyDescription" rows="4" value={formData.companyDescription} onChange={handleUserFieldChange} className={`w-full px-4 py-3 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`rounded-3xl border p-5 ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50/80'}`}>
+                  <h3 className={`text-lg font-semibold mb-4 ${textPrimary}`}>Recruiter Documents</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {renderUploadCard('Business License / Trade License', 'businessLicense', 'PDF or image', true)}
+                    {renderUploadCard('Company Logo', 'companyLogo', 'PNG, JPG, or SVG', false, '.png,.jpg,.jpeg,.svg')}
+                    {renderUploadCard('Tax Registration Document', 'taxDocument', 'PDF or image')}
+                    {renderUploadCard('Payment Proof', 'paymentProof', 'Screenshot or PDF')}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button type="submit" className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium">
+                {isEditing ? 'Save Changes' : 'Create User'}
+              </button>
+              <button
+                type="button"
+                onClick={closeUserFormModal}
+                className={`flex-1 py-3 rounded-xl font-medium ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-900'}`}
+              >
+                Cancel
+              </button>
             </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    );
+  };
+
+  const renderJobFormModal = () => {
+    const isOpen = showAddJobModal || showEditJobModal;
+    if (!isOpen) return null;
+
+    const isEditing = showEditJobModal;
+    const closeJobFormModal = () => {
+      setShowAddJobModal(false);
+      setShowEditJobModal(false);
+      setEditingJob(null);
+      setJobSearchQuery('');
+      setShowJobDropdown(false);
+      setCustomJobTitle('');
+      setJobFormData({
+        title: '', description: '', skills: '',
+        jobType: 'full-time', salaryNegotiable: false, salaryMin: '', salaryMax: '',
+        benefits: '', applicationDeadline: '', status: 'active', gender: 'both',
+        educationLevel: 'Not required', educationLevelOther: '', country: 'Ethiopia', state: '', city: '',
+        kebele: '', experience: '0 years', language: [],
+        languageOther: '', companyName: ''
+      });
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onClick={closeJobFormModal}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border ${borderColor} ${darkMode ? 'bg-slate-800' : 'bg-white'} p-6 shadow-2xl`}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-2xl font-bold ${textPrimary}`}>{isEditing ? 'Edit Job' : 'Add Job'}</h2>
+              <p className={`mt-1 ${textSecondary}`}>Create and manage published job postings.</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeJobFormModal}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}
+            >
+              <FiX className="w-5 h-5" />
+            </button>
           </div>
+
+          <form onSubmit={isEditing ? handleUpdateJob : handleCreateJob} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Job Title</label>
+                <div className="relative">
+                  <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textMuted}`} />
+                  <input
+                    type="text"
+                    value={jobFormData.title === 'Other' ? customJobTitle : jobFormData.title}
+                    onFocus={() => {
+                      setJobSearchQuery(jobFormData.title === 'Other' ? customJobTitle : jobFormData.title);
+                      setShowJobDropdown(true);
+                    }}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setJobSearchQuery(value);
+                      setShowJobDropdown(true);
+                      setCustomJobTitle(value);
+                      setJobFormData((prev) => ({ ...prev, title: value }));
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setShowJobDropdown(false), 150);
+                    }}
+                    placeholder="Search or choose a job title"
+                    className={`w-full pl-11 pr-10 py-3 rounded-xl border transition-all duration-200 ${
+                      darkMode
+                        ? 'bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/30'
+                        : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                    }`}
+                    required
+                  />
+                  <FiChevronDown className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textMuted}`} />
+
+                  {showJobDropdown && (
+                    <div className={`absolute z-20 mt-2 w-full rounded-2xl border shadow-2xl overflow-hidden ${
+                      darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                    }`}>
+                      <div className={`max-h-64 overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                        {filteredJobCategories.length > 0 ? (
+                          filteredJobCategories.map((job) => (
+                            <button
+                              key={job}
+                              type="button"
+                              onMouseDown={() => {
+                                setJobFormData((prev) => ({ ...prev, title: job }));
+                                setJobSearchQuery(job);
+                                setCustomJobTitle('');
+                                setShowJobDropdown(false);
+                              }}
+                              className={`w-full px-4 py-3 text-left transition ${
+                                darkMode
+                                  ? 'text-slate-100 hover:bg-slate-700 border-b border-slate-700 last:border-b-0'
+                                  : 'text-slate-900 hover:bg-slate-50 border-b border-slate-100 last:border-b-0'
+                              }`}
+                            >
+                              {job}
+                            </button>
+                          ))
+                        ) : (
+                          <div className={`px-4 py-3 ${textSecondary}`}>No matching job titles</div>
+                        )}
+                        <button
+                          type="button"
+                          onMouseDown={() => {
+                            setJobFormData((prev) => ({ ...prev, title: 'Other' }));
+                            setShowJobDropdown(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left font-medium transition ${
+                            darkMode ? 'text-indigo-300 hover:bg-slate-700' : 'text-indigo-600 hover:bg-indigo-50'
+                          }`}
+                        >
+                          Other
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {(jobFormData.title === 'Other' || customJobTitle) && (
+                <div className="md:col-span-2">
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Specify Job Title</label>
+                  <input
+                    type="text"
+                    value={customJobTitle}
+                    onChange={(e) => {
+                      setCustomJobTitle(e.target.value);
+                      setJobFormData((prev) => ({ ...prev, title: e.target.value }));
+                    }}
+                    placeholder="Enter custom job title"
+                    className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Company Name</label>
+                <input
+                  type="text"
+                  value={jobFormData.companyName}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, companyName: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>City</label>
+                <input
+                  type="text"
+                  value={jobFormData.city}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, city: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Kebele</label>
+                <input
+                  type="text"
+                  value={jobFormData.kebele}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, kebele: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Job Type</label>
+                <div className="relative group">
+                  <select
+                    value={jobFormData.jobType}
+                    onChange={(e) => setJobFormData((prev) => ({ ...prev, jobType: e.target.value }))}
+                    className={`w-full appearance-none px-4 py-3 pr-12 rounded-xl border transition-all duration-200 shadow-sm ${
+                      darkMode
+                        ? 'bg-slate-700 border-slate-600 text-white hover:border-indigo-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/30'
+                        : 'bg-white border-slate-300 text-slate-900 hover:border-indigo-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                    }`}
+                  >
+                    <option value="full-time">Full-time</option>
+                    <option value="part-time">Part-time</option>
+                    <option value="contract">Contract</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                    <FiChevronDown className={`w-4 h-4 transition-transform duration-200 group-focus-within:rotate-180 ${darkMode ? 'text-slate-300' : 'text-slate-500'}`} />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Experience</label>
+                <select
+                  value={jobFormData.experience}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, experience: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                >
+                  <option value="0 years">0 years</option>
+                  <option value="1 year">1 year</option>
+                  <option value="2 years">2 years</option>
+                  <option value="3 years">3 years</option>
+                  <option value="4 years">4 years</option>
+                  <option value="5 years">5 years</option>
+                  <option value="Above 5 years">Above 5 years</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Gender</label>
+                <select
+                  value={jobFormData.gender}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, gender: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                >
+                  <option value="both">Both</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Education Level</label>
+                <select
+                  value={jobFormData.educationLevel}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setJobFormData((prev) => ({
+                      ...prev,
+                      educationLevel: value,
+                      educationLevelOther: value === 'Level' || value === 'Other' ? prev.educationLevelOther : ''
+                    }));
+                  }}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                >
+                  <option value="Phd">Phd</option>
+                  <option value="Masters">Masters</option>
+                  <option value="Degree">Degree</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="Level">Level</option>
+                  <option value="Above grade 12">Above grade 12</option>
+                  <option value="Above grade 10">Above grade 10</option>
+                  <option value="Above grade 8">Above grade 8</option>
+                  <option value="Not required">Not required</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              {(jobFormData.educationLevel === 'Level' || jobFormData.educationLevel === 'Other') && (
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>
+                    {jobFormData.educationLevel === 'Level' ? 'Specify Level' : 'Specify Education Need'}
+                  </label>
+                  <input
+                    type="text"
+                    value={jobFormData.educationLevelOther}
+                    onChange={(e) => setJobFormData((prev) => ({ ...prev, educationLevelOther: e.target.value }))}
+                    className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                    required
+                  />
+                </div>
+              )}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Status</label>
+                <select
+                  value={jobFormData.status}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, status: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                >
+                  <option value="active">Active</option>
+                  <option value="closed">Closed</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Application Deadline</label>
+                <input
+                  type="date"
+                  value={jobFormData.applicationDeadline}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, applicationDeadline: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Skills</label>
+                <textarea
+                  rows="3"
+                  value={jobFormData.skills}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, skills: e.target.value }))}
+                  placeholder="Comma separated"
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Benefits</label>
+                <textarea
+                  rows="3"
+                  value={jobFormData.benefits}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, benefits: e.target.value }))}
+                  placeholder="Comma separated"
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Minimum Salary</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={jobFormData.salaryMin}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, salaryMin: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Maximum Salary</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={jobFormData.salaryMax}
+                  onChange={(e) => setJobFormData((prev) => ({ ...prev, salaryMax: e.target.value }))}
+                  className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                id="salaryNegotiable"
+                type="checkbox"
+                checked={jobFormData.salaryNegotiable}
+                onChange={(e) => setJobFormData((prev) => ({ ...prev, salaryNegotiable: e.target.checked }))}
+                className="w-4 h-4 rounded accent-indigo-600"
+              />
+              <label htmlFor="salaryNegotiable" className={textSecondary}>Salary negotiable</label>
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Description</label>
+              <textarea
+                rows="5"
+                value={jobFormData.description}
+                onChange={(e) => setJobFormData((prev) => ({ ...prev, description: e.target.value }))}
+                className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                required
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button type="submit" className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium">
+                {isEditing ? 'Save Changes' : 'Create Job'}
+              </button>
+              <button
+                type="button"
+                onClick={closeJobFormModal}
+                className={`flex-1 py-3 rounded-xl font-medium ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-900'}`}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </motion.div>
       </motion.div>
     );
@@ -799,6 +1757,8 @@ const renderPaymentsTab = () => (
   return (
     <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab} darkMode={darkMode} setDarkMode={setDarkMode} pendingCount={pendingApprovals.length} onLogout={logout} user={user}>
       {renderContent()}
+      <AnimatePresence>{renderUserFormModal()}</AnimatePresence>
+      <AnimatePresence>{renderJobFormModal()}</AnimatePresence>
       <AnimatePresence>{renderUserDetailsModal()}</AnimatePresence>
       <AnimatePresence>{renderPaymentSettingsModal()}</AnimatePresence>
     </AdminLayout>

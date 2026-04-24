@@ -96,6 +96,7 @@ export const applicationsApi = {
     });
   },
   myApplications: () => api.get('/applications/my'),
+  getRecruiterApplications: () => api.get('/applications/recruiter/my'),
   getJobApplications: (jobId) => api.get(`/applications/job/${jobId}`),
   updateStatus: (id, data) => api.put(`/applications/${id}/status`, data)
 };
@@ -152,7 +153,9 @@ export const adminApi = {
   getPaymentSettings: () => api.get('/admin/payment-settings'),
   createPaymentSetting: (data) => api.post('/admin/payment-settings', data),
   updatePaymentSetting: (key, data) => api.post('/admin/payment-settings', { key, ...data }),
-  deletePaymentSetting: (key) => api.delete(`/admin/payment-settings/${key}`)
+  deletePaymentSetting: (key) => api.delete(`/admin/payment-settings/${key}`),
+  getNotifications: () => api.get('/admin/notifications'),
+  markNotificationRead: (id) => api.put(`/admin/notifications/${id}/read`)
 };
 
 export default api;

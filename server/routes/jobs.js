@@ -1,5 +1,6 @@
 const express = require('express');
 const Job = require('../models/Job');
+const RecruiterProfile = require('../models/RecruiterProfile');
 const { auth, requireRole } = require('../middlewares/auth');
 const { notifyJobMatchingUsers } = require('../utils/notifications');
 
@@ -8,14 +9,17 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const { search, location, jobType, experienceLevel, skills, myJobs, page = 1, limit = 20, educationLevel, gender, state, city } = req.query;
-    const query = { status: 'active' };
+    let query = { status: 'active' };
     
     if (myJobs === 'true' && req.user) {
       const RecruiterProfile = require('../models/RecruiterProfile');
       const recruiterProfile = await RecruiterProfile.findOne({ userId: req.user._id });
       if (recruiterProfile) {
-        query.recruiterId = recruiterProfile._id;
-        query.isAdminPost = { $ne: true };
+        query = { recruiterId: recruiterProfile._id };
+      } else {
+        const User = require('../models/User');
+        const user = await User.findById(req.user._id);
+        console.log('[DEBUG] No recruiterProfile for user:', req.user._id, 'User:', user?.email);
       }
     }
     
@@ -68,7 +72,12 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', auth, requireRole('recruiter'), async (req, res) => {
   try {
-    const job = new Job({ ...req.body, recruiterId: req.user._id });
+    const recruiterProfile = await RecruiterProfile.findOne({ userId: req.user._id });
+    if (!recruiterProfile) {
+      return res.status(404).json({ message: 'Recruiter profile not found' });
+    }
+
+    const job = new Job({ ...req.body, recruiterId: recruiterProfile._id });
     await job.save();
     
     notifyJobMatchingUsers(job);
@@ -81,8 +90,13 @@ router.post('/', auth, requireRole('recruiter'), async (req, res) => {
 
 router.put('/:id', auth, requireRole('recruiter'), async (req, res) => {
   try {
+    const recruiterProfile = await RecruiterProfile.findOne({ userId: req.user._id });
+    if (!recruiterProfile) {
+      return res.status(404).json({ message: 'Recruiter profile not found' });
+    }
+
     const job = await Job.findOneAndUpdate(
-      { _id: req.params.id, recruiterId: req.user._id },
+      { _id: req.params.id, recruiterId: recruiterProfile._id },
       { ...req.body, updatedAt: Date.now() },
       { new: true }
     );
@@ -97,7 +111,12 @@ router.put('/:id', auth, requireRole('recruiter'), async (req, res) => {
 
 router.delete('/:id', auth, requireRole('recruiter'), async (req, res) => {
   try {
-    const job = await Job.findOneAndDelete({ _id: req.params.id, recruiterId: req.user._id });
+    const recruiterProfile = await RecruiterProfile.findOne({ userId: req.user._id });
+    if (!recruiterProfile) {
+      return res.status(404).json({ message: 'Recruiter profile not found' });
+    }
+
+    const job = await Job.findOneAndDelete({ _id: req.params.id, recruiterId: recruiterProfile._id });
     if (!job) {
       return res.status(404).json({ message: 'Job not found' });
     }

@@ -12,7 +12,7 @@ const jobSchema = new mongoose.Schema({
   kebele: { type: String, default: '' },
   gender: { type: String, enum: ['male', 'female', 'both'], default: 'both' },
   companyName: { type: String, default: '' },
-  jobType: { type: String, enum: ['full-time', 'part-time', 'contract', 'internship'], default: 'full-time' },
+  jobType: { type: String, enum: ['full-time', 'part-time', 'contract', 'monthly'], default: 'full-time' },
   experienceLevel: { type: String, default: '' },
   educationLevel: { type: String, default: '' },
   salary: {

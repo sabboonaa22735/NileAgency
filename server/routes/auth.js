@@ -160,21 +160,31 @@ router.post('/select-role', auth, async (req, res) => {
     if (!['employee', 'recruiter'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role' });
     }
+    console.log('select-role - user:', req.user?._id, 'role:', role);
     const user = await User.findById(req.user._id);
+    console.log('select-role - found user:', user?._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     user.role = role;
     user.registrationStatus = 'basic_info';
     await user.save();
+    console.log('select-role - user saved');
     
-    if (role === 'employee') {
-      const profile = new EmployeeProfile({ userId: user._id });
-      await profile.save();
-    } else if (role === 'recruiter') {
-      const profile = new RecruiterProfile({ userId: user._id });
-      await profile.save();
+    const ProfileModel = role === 'employee' ? EmployeeProfile : RecruiterProfile;
+    const existingProfile = await ProfileModel.findOne({ userId: user._id });
+    console.log('select-role - existing profile:', existingProfile?._id);
+    if (existingProfile) {
+      return res.json({ message: 'Role selected successfully', user: { id: user._id, email: user.email, role: user.role, registrationStatus: user.registrationStatus } });
     }
+    
+    const profile = new ProfileModel({ userId: user._id });
+    await profile.save();
+    console.log('select-role - profile created:', profile._id);
     
     res.json({ message: 'Role selected successfully', user: { id: user._id, email: user.email, role: user.role, registrationStatus: user.registrationStatus } });
   } catch (error) {
+    console.error('select-role error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -193,6 +203,7 @@ router.put('/profile', auth, upload.single('profileImage'), async (req, res) => 
     
     if (req.body.firstName) user.firstName = req.body.firstName;
     if (req.body.lastName) user.lastName = req.body.lastName;
+    if (req.body.phone) user.phone = req.body.phone;
     if (req.body.password) user.password = req.body.password;
     if (req.file) user.profileImage = `/uploads/${req.file.filename}`;
     
@@ -333,11 +344,15 @@ router.post('/employee/step3', auth, upload.fields([
     
     const { paymentMethod, bankReference } = req.body;
     
-    if (!['bank', 'chapa'].includes(paymentMethod)) {
+    if (!['bank', 'chapa', 'telebirr'].includes(paymentMethod)) {
       return res.status(400).json({ message: 'Invalid payment method' });
     }
     
     const profile = await EmployeeProfile.findOne({ userId: user._id });
+    
+    const PaymentSetting = require('../models/PaymentSetting');
+    const feeSetting = await PaymentSetting.findOne({ key: 'employee_fee' });
+    const applicationFee = feeSetting ? parseInt(feeSetting.value) : 5000;
     
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     let paymentProofPath = '';
@@ -349,7 +364,7 @@ router.post('/employee/step3', auth, upload.fields([
       userId: user._id,
       type: 'application_fee',
       planType: 'employee',
-      amount: 50,
+      amount: applicationFee,
       status: 'completed',
       paymentMethod: paymentMethod,
       bankReference: bankReference || '',
@@ -360,6 +375,17 @@ router.post('/employee/step3', auth, upload.fields([
     
     user.registrationStatus = 'pending_approval';
     await user.save();
+    
+    const { createNotification } = require('../utils/notifications');
+    const admins = await User.find({ role: 'admin' });
+    for (const admin of admins) {
+      await createNotification({ 
+        userId: admin._id, 
+        type: 'registration', 
+        title: 'New Registration Pending', 
+        message: `${user.role === 'employee' ? user.firstName + ' ' + user.lastName : user.companyName || user.email} registration is pending approval` 
+      });
+    }
     
     res.json({ message: 'Registration submitted for approval', registrationStatus: user.registrationStatus });
   } catch (error) {
@@ -457,18 +483,29 @@ router.post('/recruiter/step3', auth, upload.fields([
   { name: 'paymentProof', maxCount: 1 }
 ]), async (req, res) => {
   try {
+    console.log('recruiter step3 body:', req.body);
+    console.log('recruiter step3 files:', req.files);
+    
     const user = await User.findById(req.user._id);
     if (user.role !== 'recruiter') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     
     const { paymentMethod, bankReference } = req.body;
+    console.log('paymentMethod received:', paymentMethod);
     
-    if (!['bank', 'chapa'].includes(paymentMethod)) {
+    if (!['bank', 'chapa', 'telebirr'].includes(paymentMethod)) {
       return res.status(400).json({ message: 'Invalid payment method' });
     }
     
     const profile = await RecruiterProfile.findOne({ userId: user._id });
+    if (!profile) {
+      return res.status(400).json({ message: 'Please complete step 2 first' });
+    }
+    
+    const PaymentSetting = require('../models/PaymentSetting');
+    const feeSetting = await PaymentSetting.findOne({ key: 'recruiter_fee' });
+    const applicationFee = feeSetting ? parseInt(feeSetting.value) : 10000;
     
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     let paymentProofPath = '';
@@ -480,7 +517,7 @@ router.post('/recruiter/step3', auth, upload.fields([
       userId: user._id,
       type: 'application_fee',
       planType: 'recruiter',
-      amount: 100,
+      amount: applicationFee,
       status: 'completed',
       paymentMethod: paymentMethod,
       bankReference: bankReference || '',
@@ -494,8 +531,19 @@ router.post('/recruiter/step3', auth, upload.fields([
     profile.paymentProof = paymentProofPath;
     await profile.save();
     
-    user.registrationStatus = 'pending_approval';
+user.registrationStatus = 'pending_approval';
     await user.save();
+    
+    const { createNotification } = require('../utils/notifications');
+    const admins = await User.find({ role: 'admin' });
+    for (const admin of admins) {
+      await createNotification({ 
+        userId: admin._id, 
+        type: 'registration', 
+        title: 'New Recruiter Registration', 
+        message: `${user.companyName || user.email} registration is pending approval` 
+      });
+    }
     
     res.json({ message: 'Registration submitted for approval', registrationStatus: user.registrationStatus });
   } catch (error) {

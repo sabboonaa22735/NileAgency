@@ -26,7 +26,18 @@ export default function PremiumLogin() {
 
     try {
       const data = await login(email, password);
-      navigate(data.user?.role ? '/dashboard' : '/role-selection');
+      const status = data.user.registrationStatus;
+      if (!data.user.role) {
+        navigate('/role-selection');
+      } else if (status === 'pending_approval') {
+        navigate('/pending-approval');
+      } else if (status === 'rejected') {
+        navigate('/rejected');
+      } else if (status === 'approved') {
+        navigate('/dashboard');
+      } else {
+        navigate(`/${data.user.role}-registration`);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid email or password');
     }

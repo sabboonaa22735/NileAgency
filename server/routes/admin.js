@@ -142,7 +142,15 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
 
 router.post('/users', adminAuth, async (req, res) => {
   try {
-    const { email, password, role, firstName, lastName, companyName, industry, numberOfEmployees, website, foundedYear, managerName, city, kebele, contactEmail, contactPhone, phone, address, bio, skills, photo, resume, idCard, certificate, companyLogo, businessLicense, taxDocument, paymentProof } = req.body;
+    const {
+      email, password, role,
+      firstName, middleName, lastName, phone, country, region, city, dateOfBirth, gender, bio,
+      skills, experienceLevel, educationLevel, expectedSalary, availability, typeOfJob, typeOfJobOther,
+      languages, languageOther, address, photo, resume, idCard, certificate,
+      companyName, companyDescription, industry, industryOther, numberOfEmployees, website, foundedYear,
+      managerName, kebele, contactEmail, contactPhone, companyLogo, businessLicense, taxDocument, paymentProof,
+      paymentMethod, bankReference
+    } = req.body;
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -162,11 +170,25 @@ router.post('/users', adminAuth, async (req, res) => {
       const employeeProfile = new EmployeeProfile({
         userId: user._id,
         firstName: firstName || '',
+        middleName: middleName || '',
         lastName: lastName || '',
         phone: phone || '',
+        country: country || 'Ethiopia',
+        region: region || '',
+        city: city || '',
+        dateOfBirth: dateOfBirth || '',
+        gender: gender || '',
         address: address || '',
         bio: bio || '',
         skills: skills || [],
+        experienceLevel: experienceLevel || 'none',
+        educationLevel: educationLevel || 'none',
+        expectedSalary: expectedSalary || 0,
+        availability: availability || 'available',
+        typeOfJob: typeOfJob || '',
+        typeOfJobOther: typeOfJobOther || '',
+        languages: languages || [],
+        languageOther: languageOther || '',
         photo: photo || '',
         resume: resume || '',
         idCard: idCard || '',
@@ -177,7 +199,9 @@ router.post('/users', adminAuth, async (req, res) => {
       const recruiterProfile = new RecruiterProfile({
         userId: user._id,
         companyName: companyName || '',
+        companyDescription: companyDescription || '',
         industry: industry || '',
+        industryOther: industryOther || '',
         numberOfEmployees: numberOfEmployees || '',
         website: website || '',
         foundedYear: foundedYear || '',
@@ -189,7 +213,9 @@ router.post('/users', adminAuth, async (req, res) => {
         companyLogo: companyLogo || '',
         businessLicense: businessLicense || '',
         taxDocument: taxDocument || '',
-        paymentProof: paymentProof || ''
+        paymentProof: paymentProof || '',
+        paymentMethod: paymentMethod || null,
+        bankReference: bankReference || ''
       });
       await recruiterProfile.save();
     }
@@ -205,7 +231,15 @@ router.post('/users', adminAuth, async (req, res) => {
 
 router.put('/users/:id', adminAuth, async (req, res) => {
   try {
-    const { firstName, lastName, companyName, industry, numberOfEmployees, website, foundedYear, managerName, city, kebele, contactEmail, contactPhone, registrationStatus, isVerified, photo, resume, idCard, certificate, companyLogo, businessLicense, taxDocument, paymentProof } = req.body;
+    const {
+      firstName, middleName, lastName, phone, country, region, city, dateOfBirth, gender, address, bio,
+      skills, experienceLevel, educationLevel, expectedSalary, availability, typeOfJob, typeOfJobOther,
+      languages, languageOther,
+      companyName, companyDescription, industry, industryOther, numberOfEmployees, website, foundedYear,
+      managerName, kebele, contactEmail, contactPhone,
+      registrationStatus, isVerified, photo, resume, idCard, certificate, companyLogo, businessLicense,
+      taxDocument, paymentProof, paymentMethod, bankReference
+    } = req.body;
     
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -219,11 +253,25 @@ router.put('/users/:id', adminAuth, async (req, res) => {
         { userId: user._id },
         { 
           firstName: firstName || '',
+          middleName: middleName || '',
           lastName: lastName || '',
           phone: phone || '',
+          country: country || 'Ethiopia',
+          region: region || '',
+          city: city || '',
+          dateOfBirth: dateOfBirth || '',
+          gender: gender || '',
           address: address || '',
           bio: bio || '',
           skills: skills || [],
+          experienceLevel: experienceLevel || 'none',
+          educationLevel: educationLevel || 'none',
+          expectedSalary: expectedSalary || 0,
+          availability: availability || 'available',
+          typeOfJob: typeOfJob || '',
+          typeOfJobOther: typeOfJobOther || '',
+          languages: languages || [],
+          languageOther: languageOther || '',
           photo: photo || '',
           resume: resume || '',
           idCard: idCard || '',
@@ -236,7 +284,9 @@ router.put('/users/:id', adminAuth, async (req, res) => {
         { userId: user._id },
         { 
           companyName: companyName || '',
+          companyDescription: companyDescription || '',
           industry: industry || '',
+          industryOther: industryOther || '',
           numberOfEmployees: numberOfEmployees || '',
           website: website || '',
           foundedYear: foundedYear || '',
@@ -248,7 +298,9 @@ router.put('/users/:id', adminAuth, async (req, res) => {
           companyLogo: companyLogo || '',
           businessLicense: businessLicense || '',
           taxDocument: taxDocument || '',
-          paymentProof: paymentProof || ''
+          paymentProof: paymentProof || '',
+          paymentMethod: paymentMethod || null,
+          bankReference: bankReference || ''
         },
         { upsert: true, new: true }
       );
@@ -290,7 +342,7 @@ router.post('/jobs', auth, async (req, res) => {
       return res.status(403).json({ message: 'Admin or recruiter access required' });
     }
     
-    const { title, description, requirements, skills, location, jobType, experienceLevel, salary, benefits, applicationDeadline, status, gender, country, state, city, kebele, phone, email, companyName, educationLevel, experience, language, languageOther } = req.body;
+    const { title, description, skills, location, jobType, experienceLevel, salary, benefits, applicationDeadline, status, gender, country, state, city, kebele, phone, email, companyName, educationLevel, experience, language, languageOther, salaryNegotiable } = req.body;
     
     let recruiterId;
     const firstRecruiter = await RecruiterProfile.findOne();
@@ -311,7 +363,6 @@ router.post('/jobs', auth, async (req, res) => {
       recruiterId: recruiterId,
       title,
       description,
-      requirements: requirements || [],
       skills: skills || [],
       location: location || '',
       city: city || '',
@@ -326,6 +377,7 @@ router.post('/jobs', auth, async (req, res) => {
       jobType: jobType || 'full-time',
       experienceLevel: experience || experienceLevel || 'mid',
       salary: salary || { min: 0, max: 0, currency: 'USD' },
+      salaryNegotiable: Boolean(salaryNegotiable),
       benefits: benefits || [],
       applicationDeadline: applicationDeadline || null,
       status: status || 'active',
@@ -343,19 +395,26 @@ router.post('/jobs', auth, async (req, res) => {
 
 router.put('/jobs/:id', adminAuth, async (req, res) => {
   try {
-    const { title, description, requirements, skills, location, jobType, experienceLevel, salary, benefits, applicationDeadline, status } = req.body;
+    const { title, description, skills, location, jobType, experienceLevel, salary, benefits, applicationDeadline, status, city, kebele, gender, companyName, educationLevel, country, state, salaryNegotiable } = req.body;
     
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
     
     job.title = title || job.title;
     job.description = description || job.description;
-    job.requirements = requirements || job.requirements;
     job.skills = skills || job.skills;
     job.location = location || job.location;
     job.jobType = jobType || job.jobType;
     job.experienceLevel = experienceLevel || job.experienceLevel;
+    job.educationLevel = educationLevel || job.educationLevel;
+    job.city = city || job.city;
+    job.kebele = kebele || job.kebele;
+    job.gender = gender || job.gender;
+    job.companyName = companyName || job.companyName;
+    job.country = country || job.country;
+    job.state = state || job.state;
     job.salary = salary || job.salary;
+    if (salaryNegotiable !== undefined) job.salaryNegotiable = Boolean(salaryNegotiable);
     job.benefits = benefits || job.benefits;
     job.applicationDeadline = applicationDeadline || job.applicationDeadline;
     job.status = status || job.status;
@@ -413,6 +472,14 @@ router.post('/approve/:id', adminAuth, async (req, res) => {
     user.isVerified = true;
     await user.save();
     
+    const { createNotification } = require('../utils/notifications');
+    await createNotification({ 
+      userId: user._id, 
+      type: 'approval', 
+      title: 'Registration Approved', 
+      message: 'Your registration has been approved. You can now login to your dashboard.' 
+    });
+    
     res.json({ message: 'User approved successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -428,6 +495,14 @@ router.post('/reject/:id', adminAuth, async (req, res) => {
     
     user.registrationStatus = 'rejected';
     await user.save();
+    
+    const { createNotification } = require('../utils/notifications');
+    await createNotification({ 
+      userId: user._id, 
+      type: 'rejection', 
+      title: 'Registration Rejected', 
+      message: 'Your registration was not approved. Please contact support for more information.' 
+    });
     
     res.json({ message: 'User rejected' });
   } catch (error) {
@@ -537,6 +612,32 @@ router.delete('/payment-settings/:key', adminAuth, async (req, res) => {
       return res.status(404).json({ message: 'Setting not found' });
     }
     res.json({ message: 'Setting deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/notifications', adminAuth, async (req, res) => {
+  try {
+    const Notification = require('../models/Notification');
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.put('/notifications/:id/read', adminAuth, async (req, res) => {
+  try {
+    const Notification = require('../models/Notification');
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { read: true },
+      { new: true }
+    );
+    res.json(notification);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

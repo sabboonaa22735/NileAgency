@@ -18,7 +18,7 @@ const recruiterProfileSchema = new mongoose.Schema({
   businessLicense: { type: String, default: '' },
   taxDocument: { type: String, default: '' },
   paymentProof: { type: String, default: '' },
-  paymentMethod: { type: String, enum: ['bank', 'telebirr'], default: '' },
+  paymentMethod: { type: String, enum: ['bank', 'telebirr'], default: null },
   bankReference: { type: String, default: '' },
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },

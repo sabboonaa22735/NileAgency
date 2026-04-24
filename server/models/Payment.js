@@ -7,7 +7,7 @@ const paymentSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   currency: { type: String, default: 'USD' },
   status: { type: String, enum: ['pending', 'completed', 'failed', 'refunded'], default: 'pending' },
-  paymentMethod: { type: String, enum: ['bank', 'chapa', 'stripe'], default: 'bank' },
+  paymentMethod: { type: String, enum: ['bank', 'chapa', 'stripe', 'telebirr'], default: 'bank' },
   bankReference: { type: String, default: '' },
   paymentProof: { type: String, default: '' },
   stripePaymentId: { type: String, default: '' },

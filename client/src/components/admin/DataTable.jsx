@@ -24,6 +24,28 @@ export default function DataTable({
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
 
+  const handleExport = () => {
+    if (data.length === 0) return;
+    
+    const headers = displayColumns.map(col => col.label).join(',');
+    const rows = data.map(item => {
+      return displayColumns.map(col => {
+        const val = item[col.key];
+        if (val instanceof Date) return val.toLocaleDateString();
+        return String(val || '').replace(/,/g, '');
+      }).join(',');
+    });
+    
+    const csv = [headers, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-600';
   const textMuted = darkMode ? 'text-slate-500' : 'text-slate-400';
@@ -151,6 +173,7 @@ export default function DataTable({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={handleExport}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${
               darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'
             } transition`}

@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String, unique: true, sparse: true },
   firstName: { type: String, default: '' },
   lastName: { type: String, default: '' },
+  phone: { type: String, default: '' },
   profileImage: { type: String, default: '' },
   role: { type: String, enum: ['employee', 'recruiter', 'admin'], default: null },
   isVerified: { type: Boolean, default: false },

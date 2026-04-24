@@ -75,6 +75,25 @@ router.get('/my', auth, requireRole('employee'), async (req, res) => {
   }
 });
 
+router.get('/recruiter/my', auth, requireRole('recruiter'), async (req, res) => {
+  try {
+    const RecruiterProfile = require('../models/RecruiterProfile');
+    const recruiterProfile = await RecruiterProfile.findOne({ userId: req.user._id });
+    if (!recruiterProfile) {
+      return res.status(404).json({ message: 'Recruiter profile not found' });
+    }
+    const jobs = await Job.find({ recruiterId: recruiterProfile._id, status: 'active' });
+    const jobIds = jobs.map(j => j._id);
+    const applications = await Application.find({ jobId: { $in: jobIds } })
+      .populate('jobId', 'title location jobType salary company')
+      .populate('employeeId', 'firstName lastName skills experience')
+      .sort({ createdAt: -1 });
+    res.json(applications);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 router.get('/job/:jobId', auth, requireRole('recruiter'), async (req, res) => {
   try {
     const applications = await Application.find({ jobId: req.params.jobId })
@@ -86,7 +105,7 @@ router.get('/job/:jobId', auth, requireRole('recruiter'), async (req, res) => {
   }
 });
 
-router.put('/:id/status', auth, requireRole('recruiter'), async (req, res) => {
+router.put('/:id/status', auth, requireRole('recruiter', 'admin'), async (req, res) => {
   try {
     const { status, notes } = req.body;
     const application = await Application.findById(req.params.id);

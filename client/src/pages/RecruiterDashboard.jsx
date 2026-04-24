@@ -27,6 +27,18 @@ const RecruiterDashboard = () => {
   const [messages, setMessages] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [stats, setStats] = useState({ activeJobs: 0, totalApplicants: 0, hiresThisMonth: 0, responseRate: '0%' });
+  const [showJobFormModal, setShowJobFormModal] = useState(false);
+  const [editingJob, setEditingJob] = useState(null);
+  const [jobSearchTitle, setJobSearchTitle] = useState('');
+  const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
+  const [jobFormData, setJobFormData] = useState({
+    title: '', description: '', skills: '',
+    jobType: 'full-time', salaryNegotiable: false, salaryMin: '', salaryMax: '',
+    benefits: '', applicationDeadline: '', status: 'active', gender: 'both',
+    educationLevel: 'Not required', educationLevelOther: '', country: 'Ethiopia', state: '', city: '',
+    kebele: '', experience: '0 years', language: [],
+    languageOther: '', companyName: ''
+  });
 
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-600';
@@ -36,6 +48,8 @@ const RecruiterDashboard = () => {
   const bgSidebar = darkMode ? 'bg-slate-900' : 'bg-white';
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
   const borderSubtle = darkMode ? 'border-slate-800' : 'border-slate-100';
+  const ethiopianJobCategories = ['Accountant', 'Administrative Assistant', 'Architect', 'Banker', 'Business Analyst', 'Cashier', 'Chef', 'Civil Engineer', 'Clinical Officer', 'Computer Operator', 'Construction Worker', 'Consultant', 'Content Writer', 'Customer Service', 'Data Analyst', 'Data Entry Clerk', 'Database Administrator', 'Dental Surgeon', 'Designer', 'Doctor', 'Driver', 'Economist', 'Education Teacher', 'Electrical Engineer', 'Electrician', 'Engineer', 'Finance Manager', 'Financial Analyst', 'General Practitioner', 'Graphic Designer', 'HR Manager', 'HR Officer', 'IT Specialist', 'Journalist', 'Lab Technician', 'Lawyer', 'Librarian', 'Logistics Officer', 'Machine Operator', 'Marketing Manager', 'Marketing Officer', 'Mechanical Engineer', 'Medical Doctor', 'Nurse', 'Office Assistant', 'Pharmacist', 'Physical Therapist', 'Pilot', 'Plumber', 'Procurement Officer', 'Project Manager', 'Psychologist', 'Public Relations Officer', 'Quality Assurance', 'Receptionist', 'Researcher', 'Sales Manager', 'Sales Representative', 'Secretary', 'Security Guard', 'Social Worker', 'Software Developer', 'Statistician', 'Stock Clerk', 'Surveyor', 'Teacher', 'Technician', 'Telecommunications Engineer', 'Tour Guide', 'Training Officer', 'Translator', 'Transport Manager', 'Veterinarian', 'Video Editor', 'Warehouse Manager', 'Web Developer', 'Other'];
+  const filteredJobTitleOptions = ethiopianJobCategories.filter((job) => job.toLowerCase().includes(jobSearchTitle.toLowerCase()));
   
   const glassEffect = darkMode ? 'backdrop-blur-xl bg-slate-800/95 border border-slate-700' : 'backdrop-blur-xl bg-white/95 border border-slate-200';
 
@@ -108,57 +122,207 @@ const RecruiterDashboard = () => {
     fetchNotifications();
   };
 
+  const resetJobForm = () => {
+    setJobFormData({
+      title: '', description: '', skills: '',
+      jobType: 'full-time', salaryNegotiable: false, salaryMin: '', salaryMax: '',
+      benefits: '', applicationDeadline: '', status: 'active', gender: 'both',
+      educationLevel: 'Not required', educationLevelOther: '', country: 'Ethiopia', state: '', city: '',
+      kebele: '', experience: '0 years', language: [],
+      languageOther: '', companyName: ''
+    });
+    setJobSearchTitle('');
+    setShowJobTitleDropdown(false);
+    setEditingJob(null);
+  };
+
+  const openCreateJobModal = () => {
+    resetJobForm();
+    setShowJobFormModal(true);
+  };
+
+  const openEditJobModal = (job) => {
+    const isLevelEducation = (job.educationLevel || '').toLowerCase().startsWith('level ');
+    const matchedEducationLevel = ['Phd', 'Masters', 'Degree', 'Diploma', 'Above grade 12', 'Above grade 10', 'Above grade 8', 'Not required'].includes(job.educationLevel)
+      ? job.educationLevel
+      : isLevelEducation
+        ? 'Level'
+        : 'Other';
+
+    setEditingJob(job);
+    setJobFormData({
+      title: job.title || '',
+      description: job.description || '',
+      skills: Array.isArray(job.skills) ? job.skills.join(', ') : '',
+      jobType: job.jobType || 'full-time',
+      salaryNegotiable: job.salaryNegotiable || false,
+      salaryMin: job.salary?.min || '',
+      salaryMax: job.salary?.max || '',
+      benefits: Array.isArray(job.benefits) ? job.benefits.join(', ') : '',
+      applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
+      status: job.status || 'active',
+      gender: job.gender || 'both',
+      educationLevel: matchedEducationLevel,
+      educationLevelOther: isLevelEducation ? job.educationLevel.replace(/^Level\s*/i, '') : (matchedEducationLevel === 'Other' ? (job.educationLevel || '') : ''),
+      country: job.country || 'Ethiopia',
+      state: job.state || '',
+      city: job.city || '',
+      kebele: job.kebele || '',
+      experience: job.experienceLevel || '0 years',
+      language: Array.isArray(job.language) ? job.language : [],
+      languageOther: job.languageOther || '',
+      companyName: job.companyName || ''
+    });
+    setJobSearchTitle(job.title || '');
+    setShowJobFormModal(true);
+  };
+
+  const closeJobFormModal = () => {
+    setShowJobFormModal(false);
+    resetJobForm();
+  };
+
+  const handleSaveJob = async (e) => {
+    e.preventDefault();
+    try {
+      const normalizedEducationLevel =
+        jobFormData.educationLevel === 'Level'
+          ? `Level ${jobFormData.educationLevelOther}`.trim()
+          : jobFormData.educationLevel === 'Other'
+            ? jobFormData.educationLevelOther
+            : jobFormData.educationLevel;
+
+      const payload = {
+        title: jobFormData.title,
+        description: jobFormData.description,
+        skills: jobFormData.skills ? jobFormData.skills.split(',').map((s) => s.trim()).filter((s) => s) : [],
+        location: [jobFormData.city, jobFormData.kebele].filter(Boolean).join(', '),
+        jobType: jobFormData.jobType,
+        salary: { min: Number(jobFormData.salaryMin) || 0, max: Number(jobFormData.salaryMax) || 0, currency: 'USD' },
+        salaryNegotiable: jobFormData.salaryNegotiable,
+        benefits: jobFormData.benefits ? jobFormData.benefits.split(',').map((s) => s.trim()).filter((s) => s) : [],
+        applicationDeadline: jobFormData.applicationDeadline || null,
+        status: jobFormData.status,
+        gender: jobFormData.gender,
+        country: jobFormData.country,
+        state: jobFormData.state,
+        city: jobFormData.city,
+        kebele: jobFormData.kebele,
+        experience: jobFormData.experience,
+        educationLevel: normalizedEducationLevel,
+        language: jobFormData.language,
+        languageOther: jobFormData.languageOther,
+        companyName: jobFormData.companyName
+      };
+
+      if (editingJob?._id) {
+        await jobsApi.update(editingJob._id, payload);
+      } else {
+        await jobsApi.create(payload);
+      }
+
+      closeJobFormModal();
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error saving job:', error);
+      alert(error.response?.data?.message || 'Failed to save job');
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    if (!window.confirm('Are you sure you want to delete this job?')) return;
+    try {
+      await jobsApi.delete(jobId);
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      alert(error.response?.data?.message || 'Failed to delete job');
+    }
+  };
+
   const kpiCards = [
-    { label: 'Active Jobs', value: stats.activeJobs || 0, change: '+3', trend: 'up', icon: FiBriefcase, color: 'from-blue-500 to-cyan-400' },
-    { label: 'Total Applicants', value: stats.totalApplicants || 0, change: '+18%', trend: 'up', icon: FiUsers, color: 'from-purple-500 to-pink-400' },
-    { label: 'Hires This Month', value: stats.hiresThisMonth || 0, change: '+2', trend: 'up', icon: FiAward, color: 'from-emerald-500 to-teal-400' },
-    { label: 'Response Rate', value: stats.responseRate || '0%', change: '+5%', trend: 'up', icon: FiTrendingUp, color: 'from-amber-500 to-orange-400' },
+    { label: 'Active Jobs', value: stats.activeJobs || 0, change: `${jobs.length} total`, trend: 'up', icon: FiBriefcase, color: 'from-blue-500 to-cyan-400' },
+    { label: 'Total Applicants', value: stats.totalApplicants || 0, change: `${candidates.length} live`, trend: 'up', icon: FiUsers, color: 'from-purple-500 to-pink-400' },
+    { label: 'Hires This Month', value: stats.hiresThisMonth || 0, change: 'accepted', trend: 'up', icon: FiAward, color: 'from-emerald-500 to-teal-400' },
+    { label: 'Response Rate', value: stats.responseRate || '0%', change: 'real-time', trend: 'up', icon: FiTrendingUp, color: 'from-amber-500 to-orange-400' },
   ];
 
-  const jobsData = jobs.length > 0 ? jobs : [
-    { _id: 1, title: 'Senior Frontend Developer', applicants: 45, status: 'active', createdAt: '2 days ago', salary: '$120K - $150K' },
-    { _id: 2, title: 'Product Designer', applicants: 32, status: 'active', createdAt: '3 days ago', salary: '$90K - $120K' },
-    { _id: 3, title: 'Backend Engineer', applicants: 28, status: 'active', createdAt: '5 days ago', salary: '$130K - $160K' },
-    { _id: 4, title: 'DevOps Engineer', applicants: 15, status: 'paused', createdAt: '1 week ago', salary: '$110K - $140K' },
-  ];
+  const formatRelativeDate = (value) => {
+    if (!value) return 'Unknown';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    const diffMs = Date.now() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
 
-  const candidatesData = candidates.length > 0 ? candidates.map(app => ({
-    _id: app._id,
-    name: app.employeeId?.firstName || app.firstName || 'Candidate',
-    role: app.jobId?.title || 'Position',
-    status: app.status,
-    rating: 4.5,
-    avatar: (app.employeeId?.firstName || 'C')[0] + (app.employeeId?.lastName || '')[0] || 'C',
-    experience: 'N/A',
-    location: app.city || 'N/A',
-    skills: []
-  })) : [
-    { _id: 1, name: 'Sarah Chen', role: 'Frontend Developer', status: 'interview', rating: 4.8, avatar: 'SC', experience: '5 years', location: 'San Francisco, CA', skills: ['React', 'TypeScript'] },
-    { _id: 2, name: 'Marcus Johnson', role: 'Product Designer', status: 'screening', rating: 4.5, avatar: 'MJ', experience: '7 years', location: 'New York, NY', skills: ['Figma'] },
-    { _id: 3, name: 'Emily Davis', role: 'Backend Developer', status: 'applied', rating: 4.2, avatar: 'ED', experience: '4 years', location: 'Austin, TX', skills: ['Python'] },
-    { _id: 4, name: 'James Wilson', role: 'DevOps Engineer', status: 'hired', rating: 4.9, avatar: 'JW', experience: '6 years', location: 'Seattle, WA', skills: ['AWS'] },
-  ];
+  const formatSalary = (salary) => {
+    if (!salary) return 'Not specified';
+    const { min = 0, max = 0, currency = 'USD' } = salary;
+    if (!min && !max) return 'Not specified';
+    if (min && max) return `${currency} ${min.toLocaleString()} - ${max.toLocaleString()}`;
+    return `${currency} ${(max || min).toLocaleString()}`;
+  };
 
-  const messagesData = messages.length > 0 ? messages.map((m, i) => ({
-    _id: m._id || i,
-    name: m.user?.firstName || m.email || 'User',
-    lastMessage: m.lastMessage || m.message || 'No messages',
-    time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : 'N/A',
-    unread: m.unread > 0,
-    avatar: (m.user?.firstName || 'U')[0]
-  })) : [
-    { _id: 1, name: 'Sarah Chen', lastMessage: 'Thank you for the opportunity!', time: '2 min ago', unread: true, avatar: 'SC' },
-    { _id: 2, name: 'Marcus Johnson', lastMessage: 'When is the next interview?', time: '1 hour ago', unread: true, avatar: 'MJ' },
-    { _id: 3, name: 'Emily Davis', lastMessage: 'I have attached my updated resume.', time: '3 hours ago', unread: false, avatar: 'ED' },
-  ];
+  const jobsData = jobs.map((job) => ({
+    _id: job._id,
+    title: job.title || 'Untitled Job',
+    applicants: Array.isArray(job.applicants) ? job.applicants.length : 0,
+    status: job.status || 'draft',
+    posted: formatRelativeDate(job.createdAt),
+    salary: formatSalary(job.salary)
+  }));
+
+  const candidatesData = candidates.map((app) => {
+    const firstName = app.employeeId?.firstName || app.firstName || 'Candidate';
+    const lastName = app.employeeId?.lastName || app.lastName || '';
+    return {
+      _id: app._id,
+      name: `${firstName} ${lastName}`.trim(),
+      role: app.jobId?.title || 'Position',
+      status: app.status || 'pending',
+      rating: null,
+      avatar: `${firstName[0] || 'C'}${lastName[0] || ''}`.trim() || 'C',
+      experience: app.employeeId?.experienceLevel || 'N/A',
+      location: app.city || 'N/A',
+      skills: Array.isArray(app.employeeId?.skills) ? app.employeeId.skills : []
+    };
+  });
+
+  const messagesData = messages.map((m, i) => {
+    const displayName = m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : (m.email || 'User');
+    return {
+      _id: m._id || i,
+      name: displayName,
+      lastMessage: m.lastMessage || m.message || 'No messages yet',
+      time: m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+      unread: (m.unread || 0) > 0,
+      avatar: `${(m.firstName || displayName || 'U')[0] || 'U'}${(m.lastName || '')[0] || ''}`.trim() || 'U'
+    };
+  });
 
   const applicationsData = [
-    { stage: 'Applied', count: candidates.filter(c => c.status === 'applied').length || 128, color: 'from-blue-400 to-blue-600' },
-    { stage: 'Screening', count: candidates.filter(c => c.status === 'screening').length || 45, color: 'from-purple-400 to-purple-600' },
-    { stage: 'Interview', count: candidates.filter(c => c.status === 'interview').length || 18, color: 'from-amber-400 to-amber-600' },
-    { stage: 'Offer', count: candidates.filter(c => c.status === 'offer').length || 6, color: 'from-emerald-400 to-emerald-600' },
-    { stage: 'Hired', count: candidates.filter(c => c.status === 'accepted').length || 8, color: 'from-cyan-400 to-cyan-600' },
+    { stage: 'Pending', count: candidates.filter((c) => c.status === 'pending').length, color: 'from-blue-400 to-blue-600' },
+    { stage: 'Interview', count: candidates.filter((c) => c.status === 'interview').length, color: 'from-amber-400 to-amber-600' },
+    { stage: 'Accepted', count: candidates.filter((c) => c.status === 'accepted').length, color: 'from-emerald-400 to-emerald-600' },
+    { stage: 'Rejected', count: candidates.filter((c) => c.status === 'rejected').length, color: 'from-rose-400 to-red-600' },
   ];
+
+  const statsChart = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (5 - index));
+    const monthLabel = date.toLocaleString('default', { month: 'short' });
+    const hires = candidates.filter((candidate) => {
+      if (candidate.status !== 'accepted' || !candidate.updatedAt) return false;
+      const updatedAt = new Date(candidate.updatedAt);
+      return updatedAt.getMonth() === date.getMonth() && updatedAt.getFullYear() === date.getFullYear();
+    }).length;
+    return { name: monthLabel, hires };
+  });
 
   const orb1X = useTransform(mouseX, [-20, 20], [-15, 15]);
   const orb1Y = useTransform(mouseY, [-20, 20], [-15, 15]);
@@ -168,7 +332,6 @@ const RecruiterDashboard = () => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: FiHome },
     { id: 'jobs', label: 'Jobs', icon: FiBriefcase },
-    { id: 'candidates', label: 'Candidates', icon: FiUsers },
     { id: 'messages', label: 'Messages', icon: FiMessageSquare },
     { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
     { id: 'settings', label: 'Settings', icon: FiSettings },
@@ -306,7 +469,9 @@ const RecruiterDashboard = () => {
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
           job.status === 'active' 
             ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
-            : darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+            : job.status === 'closed'
+              ? darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'
+              : darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
         }`}>
           {job.status}
         </span>
@@ -322,9 +487,14 @@ const RecruiterDashboard = () => {
             <span>{job.salary}</span>
           </div>
         </div>
-        <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} transition`}>
-          <FiMoreVertical className={`w-5 h-5 ${textSecondary}`} />
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => openEditJobModal(jobs.find((item) => item._id === job._id) || job)} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700 text-amber-400' : 'hover:bg-slate-100 text-amber-600'} transition`}>
+            <FiEdit className="w-4 h-4" />
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} onClick={() => handleDeleteJob(job._id)} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700 text-rose-400' : 'hover:bg-slate-100 text-rose-600'} transition`}>
+            <FiX className="w-4 h-4" />
+          </motion.button>
+        </div>
       </div>
     </motion.div>
   );
@@ -347,10 +517,16 @@ const RecruiterDashboard = () => {
           <h4 className={`font-semibold ${textPrimary}`}>{candidate.name}</h4>
           <p className={`text-sm ${textSecondary}`}>{candidate.role}</p>
         </div>
-        <div className="flex items-center gap-1 text-amber-400">
-          <FiStar className="w-4 h-4 fill-current" />
-          <span className="text-sm font-medium">{candidate.rating}</span>
-        </div>
+        {candidate.rating ? (
+          <div className="flex items-center gap-1 text-amber-400">
+            <FiStar className="w-4 h-4 fill-current" />
+            <span className="text-sm font-medium">{candidate.rating}</span>
+          </div>
+        ) : (
+          <span className={`text-xs px-2 py-1 rounded-lg ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+            Live applicant
+          </span>
+        )}
       </div>
       <div className="flex flex-wrap gap-2 mb-3">
         {candidate.skills.slice(0, 3).map(skill => (
@@ -367,9 +543,9 @@ const RecruiterDashboard = () => {
           <span>{candidate.location}</span>
         </div>
         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-          candidate.status === 'hired' ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700' :
+          candidate.status === 'accepted' ? darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700' :
           candidate.status === 'interview' ? darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700' :
-          candidate.status === 'screening' ? darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700' :
+          candidate.status === 'rejected' ? darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700' :
           darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
         }`}>
           {candidate.status}
@@ -393,6 +569,227 @@ const RecruiterDashboard = () => {
       </div>
     </div>
   );
+
+  const renderJobFormModal = () => {
+    if (!showJobFormModal) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        onClick={closeJobFormModal}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border ${borderColor} ${bgCard} p-6 shadow-2xl`}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className={`text-2xl font-bold ${textPrimary}`}>{editingJob ? 'Edit Job' : 'Create Job'}</h2>
+              <p className={`${textSecondary} mt-1`}>Use the same job form structure as the admin dashboard.</p>
+            </div>
+            <button onClick={closeJobFormModal} className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}>
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveJob} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Job Title</label>
+                <div className="relative">
+                  <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textMuted}`} />
+                  <input
+                    type="text"
+                    value={jobFormData.title === 'Other' ? jobSearchTitle : jobFormData.title}
+                    onFocus={() => {
+                      setJobSearchTitle(jobFormData.title === 'Other' ? jobSearchTitle : jobFormData.title);
+                      setShowJobTitleDropdown(true);
+                    }}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setJobSearchTitle(value);
+                      setShowJobTitleDropdown(true);
+                      setJobFormData((prev) => ({ ...prev, title: value }));
+                    }}
+                    onBlur={() => window.setTimeout(() => setShowJobTitleDropdown(false), 150)}
+                    placeholder="Search or choose a job title"
+                    className={`w-full pl-11 pr-10 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder:text-slate-400' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'} focus:ring-2 focus:ring-indigo-500/20 outline-none`}
+                    required
+                  />
+                  <FiChevronDown className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textMuted}`} />
+
+                  {showJobTitleDropdown && (
+                    <div className={`absolute z-20 mt-2 w-full rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                      <div className={`max-h-64 overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                        {filteredJobTitleOptions.length > 0 ? filteredJobTitleOptions.map((job) => (
+                          <button
+                            key={job}
+                            type="button"
+                            onMouseDown={() => {
+                              setJobFormData((prev) => ({ ...prev, title: job }));
+                              setJobSearchTitle(job);
+                              setShowJobTitleDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left transition ${darkMode ? 'text-slate-100 hover:bg-slate-700 border-b border-slate-700 last:border-b-0' : 'text-slate-900 hover:bg-slate-50 border-b border-slate-100 last:border-b-0'}`}
+                          >
+                            {job}
+                          </button>
+                        )) : (
+                          <div className={`px-4 py-3 ${textSecondary}`}>No matching job titles</div>
+                        )}
+                        <button
+                          type="button"
+                          onMouseDown={() => {
+                            setJobFormData((prev) => ({ ...prev, title: 'Other' }));
+                            setShowJobTitleDropdown(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left font-medium ${darkMode ? 'text-indigo-300 hover:bg-slate-700' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                        >
+                          Other
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {jobFormData.title === 'Other' && (
+                <div className="md:col-span-2">
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Specify Job Title</label>
+                  <input
+                    type="text"
+                    value={jobSearchTitle}
+                    onChange={(e) => {
+                      setJobSearchTitle(e.target.value);
+                      setJobFormData((prev) => ({ ...prev, title: e.target.value }));
+                    }}
+                    className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Company Name</label>
+                <input type="text" value={jobFormData.companyName} onChange={(e) => setJobFormData((prev) => ({ ...prev, companyName: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>City</label>
+                <input type="text" value={jobFormData.city} onChange={(e) => setJobFormData((prev) => ({ ...prev, city: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Kebele</label>
+                <input type="text" value={jobFormData.kebele} onChange={(e) => setJobFormData((prev) => ({ ...prev, kebele: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Job Type</label>
+                <select value={jobFormData.jobType} onChange={(e) => setJobFormData((prev) => ({ ...prev, jobType: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <option value="full-time">Full-time</option>
+                  <option value="part-time">Part-time</option>
+                  <option value="contract">Contract</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Experience</label>
+                <select value={jobFormData.experience} onChange={(e) => setJobFormData((prev) => ({ ...prev, experience: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <option value="0 years">0 years</option>
+                  <option value="1 year">1 year</option>
+                  <option value="2 years">2 years</option>
+                  <option value="3 years">3 years</option>
+                  <option value="4 years">4 years</option>
+                  <option value="5 years">5 years</option>
+                  <option value="Above 5 years">Above 5 years</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Gender</label>
+                <select value={jobFormData.gender} onChange={(e) => setJobFormData((prev) => ({ ...prev, gender: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <option value="both">Both</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Education Level</label>
+                <select value={jobFormData.educationLevel} onChange={(e) => setJobFormData((prev) => ({ ...prev, educationLevel: e.target.value, educationLevelOther: e.target.value === 'Level' || e.target.value === 'Other' ? prev.educationLevelOther : '' }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <option value="Phd">Phd</option>
+                  <option value="Masters">Masters</option>
+                  <option value="Degree">Degree</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="Level">Level</option>
+                  <option value="Above grade 12">Above grade 12</option>
+                  <option value="Above grade 10">Above grade 10</option>
+                  <option value="Above grade 8">Above grade 8</option>
+                  <option value="Not required">Not required</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              {(jobFormData.educationLevel === 'Level' || jobFormData.educationLevel === 'Other') && (
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>{jobFormData.educationLevel === 'Level' ? 'Specify Level' : 'Specify Education Need'}</label>
+                  <input type="text" value={jobFormData.educationLevelOther} onChange={(e) => setJobFormData((prev) => ({ ...prev, educationLevelOther: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+                </div>
+              )}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Status</label>
+                <select value={jobFormData.status} onChange={(e) => setJobFormData((prev) => ({ ...prev, status: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <option value="active">Active</option>
+                  <option value="closed">Closed</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Application Deadline</label>
+                <input type="date" value={jobFormData.applicationDeadline} onChange={(e) => setJobFormData((prev) => ({ ...prev, applicationDeadline: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Skills</label>
+                <textarea rows="3" value={jobFormData.skills} onChange={(e) => setJobFormData((prev) => ({ ...prev, skills: e.target.value }))} placeholder="Comma separated" className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Benefits</label>
+                <textarea rows="3" value={jobFormData.benefits} onChange={(e) => setJobFormData((prev) => ({ ...prev, benefits: e.target.value }))} placeholder="Comma separated" className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Minimum Salary</label>
+                <input type="number" min="0" value={jobFormData.salaryMin} onChange={(e) => setJobFormData((prev) => ({ ...prev, salaryMin: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Maximum Salary</label>
+                <input type="number" min="0" value={jobFormData.salaryMax} onChange={(e) => setJobFormData((prev) => ({ ...prev, salaryMax: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input id="recruiterSalaryNegotiable" type="checkbox" checked={jobFormData.salaryNegotiable} onChange={(e) => setJobFormData((prev) => ({ ...prev, salaryNegotiable: e.target.checked }))} className="w-4 h-4 rounded accent-indigo-600" />
+              <label htmlFor="recruiterSalaryNegotiable" className={textSecondary}>Salary negotiable</label>
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${textSecondary}`}>Description</label>
+              <textarea rows="5" value={jobFormData.description} onChange={(e) => setJobFormData((prev) => ({ ...prev, description: e.target.value }))} className={`w-full px-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`} required />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button type="submit" className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium">
+                {editingJob ? 'Save Changes' : 'Create Job'}
+              </button>
+              <button type="button" onClick={closeJobFormModal} className={`flex-1 py-3 rounded-xl font-medium ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-900'}`}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    );
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -425,7 +822,11 @@ const RecruiterDashboard = () => {
                 <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
                   <h3 className={`text-lg font-bold ${textPrimary} mb-4`}>Recent Messages</h3>
                   <div className="space-y-3">
-                    {messagesData.map(msg => (
+                    {messagesData.length === 0 ? (
+                      <div className={`rounded-xl p-6 text-center ${darkMode ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                        No conversations yet.
+                      </div>
+                    ) : messagesData.map(msg => (
                       <motion.div 
                         key={msg._id || msg.id}
                         whileHover={{ scale: 1.02 }}
@@ -454,23 +855,31 @@ const RecruiterDashboard = () => {
                 <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className={`text-lg font-bold ${textPrimary}`}>Active Jobs</h3>
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/25">
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={openCreateJobModal} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/25">
                       <FiPlus className="w-4 h-4" />Post Job
                     </motion.button>
                   </div>
-<div className="space-y-3">
-                     {jobsData.map(job => <JobCard key={job._id || job.id} job={job} />)}
-                   </div>
+                  <div className="space-y-3">
+                    {jobsData.length === 0 ? (
+                      <div className={`rounded-xl p-6 text-center ${darkMode ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                        No jobs posted yet.
+                      </div>
+                    ) : jobsData.map(job => <JobCard key={job._id || job.id} job={job} />)}
+                  </div>
                  </div>
                </div>
                <div>
                  <div className={`p-6 rounded-2xl ${bgCard} backdrop-blur-xl ${borderColor} border`}>
                    <div className="flex items-center justify-between mb-4">
-                     <h3 className={`text-lg font-bold ${textPrimary}`}>Top Candidates</h3>
-                     <button className={`text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>View All</button>
+                     <h3 className={`text-lg font-bold ${textPrimary}`}>Recent Applicants</h3>
+                     <button onClick={() => setActiveTab('jobs')} className={`text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>View Jobs</button>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     {candidatesData.slice(0, 4).map(candidate => <CandidateCard key={candidate._id || candidate.id} candidate={candidate} />)}
+                     {candidatesData.length === 0 ? (
+                       <div className={`sm:col-span-2 rounded-xl p-6 text-center ${darkMode ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                         No applicants yet.
+                       </div>
+                     ) : candidatesData.slice(0, 4).map(candidate => <CandidateCard key={candidate._id || candidate.id} candidate={candidate} />)}
                    </div>
                 </div>
               </div>
@@ -487,12 +896,16 @@ const RecruiterDashboard = () => {
                   <h2 className={`text-2xl font-bold ${textPrimary}`}>Job Postings</h2>
                   <p className={`${textSecondary} mt-1`}>Manage your job listings</p>
                 </div>
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/25">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={openCreateJobModal} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/25">
                   <FiPlus className="w-5 h-5" />Create Job
                 </motion.button>
               </div>
               <div className="space-y-4">
-                {jobsData.map(job => <JobCard key={job._id || job.id} job={job} />)}
+                {jobsData.length === 0 ? (
+                  <div className={`rounded-xl p-6 text-center ${darkMode ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                    No jobs found.
+                  </div>
+                ) : jobsData.map(job => <JobCard key={job._id || job.id} job={job} />)}
               </div>
             </div>
           </motion.div>
@@ -524,7 +937,11 @@ const RecruiterDashboard = () => {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {candidatesData.map(candidate => <CandidateCard key={candidate._id || candidate.id} candidate={candidate} />)}
+                {candidatesData.length === 0 ? (
+                  <div className={`xl:col-span-4 lg:col-span-3 sm:col-span-2 rounded-xl p-6 text-center ${darkMode ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                    No candidates found.
+                  </div>
+                ) : candidatesData.map(candidate => <CandidateCard key={candidate._id || candidate.id} candidate={candidate} />)}
               </div>
             </div>
           </motion.div>
@@ -542,7 +959,11 @@ const RecruiterDashboard = () => {
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-1 space-y-2">
-                  {messagesData.map(msg => (
+                  {messagesData.length === 0 ? (
+                    <div className={`rounded-xl p-6 text-center ${darkMode ? 'bg-slate-700/30 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                      No messages yet.
+                    </div>
+                  ) : messagesData.map(msg => (
                     <motion.div 
                       key={msg._id || msg.id}
                       whileHover={{ scale: 1.02 }}
@@ -929,6 +1350,8 @@ const RecruiterDashboard = () => {
           </div>
         </div>
       </motion.main>
+
+      <AnimatePresence>{renderJobFormModal()}</AnimatePresence>
     </div>
   );
 };
