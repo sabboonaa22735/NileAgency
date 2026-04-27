@@ -7,65 +7,14 @@ const router = express.Router();
 
 router.get('/admin/users', adminAuth, async (req, res) => {
   try {
-    const users = await User.find({ role: { $in: ['employee', 'recruiter'] } })
-      .select('_id email role')
-      .sort({ createdAt: -1 });
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-router.get('/admin', auth, async (req, res) => {
-  try {
-    const admin = await User.findOne({ role: 'admin' }).select('_id email');
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
-    res.json(admin);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-router.get('/contacts', auth, async (req, res) => {
-  try {
-    console.log('=== /contacts endpoint called ===');
-    console.log('User from auth:', req.user?._id, req.user?.email, req.user?.role);
+    let query = { 
+      role: { $in: ['employee', 'recruiter'] },
+      email: { $exists: true, $ne: '' },
+      registrationStatus: { $in: ['approved', 'pending_approval'] }
+    };
     
-    if (!req.user) {
-      console.log('No user in request');
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-    
-    const role = req.user.role;
-    const userId = req.user._id;
-    
-    console.log('Looking for contacts for role:', role);
-    
-    const allUsers = await User.find({ 
-      _id: { $ne: userId }
-    }).select('_id email role firstName lastName').lean();
-    
-    let contacts = allUsers.filter(u => {
-      if (role === 'employee') return u.role === 'admin' || u.role === 'recruiter';
-      if (role === 'recruiter') return u.role === 'admin' || u.role === 'employee';
-      if (role === 'admin') return u.role === 'employee' || u.role === 'recruiter';
-      return false;
-    });
-    
-    console.log('Found contacts:', contacts.length);
-    res.json(contacts);
-  } catch (err) {
-    console.error('=== contacts error ===', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
-
-router.get('/conversations', auth, async (req, res) => {
-  try {
-    const users = await User.find({ role: { $in: ['employee', 'recruiter'] } })
-      .select('_id email role')
+    const users = await User.find(query)
+      .select('_id email role firstName lastName')
       .sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {
@@ -88,20 +37,26 @@ router.get('/admin', auth, async (req, res) => {
 router.get('/contacts', auth, async (req, res) => {
   try {
     const role = req.user?.role;
+    const userId = req.user?._id;
     
-    if (!role || !req.user?._id) {
+    if (!role || !userId) {
       return res.json([]);
     }
     
-    const allUsers = await User.find({ _id: { $ne: req.user._id } }).select('_id email role firstName lastName').lean();
+    let query = { 
+      _id: { $ne: userId }
+    };
+    
+    const allUsers = await User.find(query).select('_id email role firstName lastName registrationStatus').lean();
     
     let contacts = allUsers.filter(u => {
-      if (role === 'employee') return u.role === 'admin' || u.role === 'recruiter';
-      if (role === 'recruiter') return u.role === 'admin' || u.role === 'employee';
       if (role === 'admin') return u.role === 'employee' || u.role === 'recruiter';
+      if (role === 'recruiter') return u.role === 'admin';
+      if (role === 'employee') return u.role === 'admin' || u.role === 'recruiter';
       return false;
     });
     
+    console.log('Contacts for role', role, ':', contacts.map(c => c.role));
     res.json(contacts);
   } catch (err) {
     console.error('contacts endpoint error:', err);
@@ -113,6 +68,7 @@ router.get('/conversations', auth, async (req, res) => {
   try {
     const userId = req.user._id;
     const userIdStr = userId.toString();
+    const userRole = req.user.role;
     
     const messages = await Message.find({
       $or: [{ senderId: userId }, { receiverId: userId }]
@@ -128,14 +84,12 @@ router.get('/conversations', auth, async (req, res) => {
         
         const partnerId = senderIdStr === userIdStr ? receiverIdStr : senderIdStr;
         
-        let partnerData = { email: 'Unknown', role: 'unknown' };
-        if (senderIdStr === userIdStr && msg.receiverId) {
-          const partner = await User.findById(msg.receiverId).select('email role firstName lastName').lean();
-          if (partner) partnerData = partner;
-        } else if (msg.senderId) {
-          const partner = await User.findById(msg.senderId).select('email role firstName lastName').lean();
-          if (partner) partnerData = partner;
-        }
+        const partner = await User.findById(partnerId).select('email role firstName lastName registrationStatus').lean();
+        
+        if (!partner || !partner.email) continue;
+        if (userRole !== 'admin' && partner.role !== 'admin' && (partner.registrationStatus || '') === 'rejected') continue;
+        
+        const partnerData = partner;
         
         if (!conversations[partnerId]) {
           conversations[partnerId] = {
@@ -144,6 +98,7 @@ router.get('/conversations', auth, async (req, res) => {
             role: partnerData.role,
             firstName: partnerData.firstName,
             lastName: partnerData.lastName,
+            registrationStatus: partnerData.registrationStatus,
             lastMessage: msg.content,
             timestamp: msg.createdAt,
             unread: receiverIdStr === userIdStr && !msg.read ? 1 : 0
@@ -175,6 +130,16 @@ router.get('/:partnerId', auth, async (req, res) => {
       return res.json([]);
     }
     
+    const partner = await User.findById(partnerId).select('email role registrationStatus').lean();
+    if (!partner || !partner.email) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const sender = await User.findById(req.user._id).select('role registrationStatus').lean();
+    if (sender.role !== 'admin' && (sender.registrationStatus || '') === 'rejected') {
+      return res.status(403).json({ message: 'You are not authorized to chat' });
+    }
+    
     const messages = await Message.find({
       $or: [
         { senderId: req.user._id, receiverId: partnerId },
@@ -196,14 +161,48 @@ router.get('/:partnerId', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { receiverId, content } = req.body;
+    console.log('POST /chat received:', { senderId: req.user._id, receiverId, content });
+    
+    const receiver = await User.findById(receiverId).select('email role registrationStatus').lean();
+    console.log('Receiver:', receiver);
+    
+    if (!receiver || !receiver.email) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const sender = await User.findById(req.user._id).select('role registrationStatus').lean();
+    console.log('Sender:', sender);
+    
+    if (sender.role !== 'admin' && (sender.registrationStatus || '') === 'rejected') {
+      return res.status(403).json({ message: 'You are not authorized to send messages' });
+    }
+    
     const message = new Message({
       senderId: req.user._id,
       receiverId,
       content
     });
     await message.save();
+    console.log('Message saved:', message._id);
+    
+    if (global.io && global.userSockets) {
+      const receiverSocket = global.userSockets[receiverId?.toString()];
+      if (receiverSocket) {
+        global.io.to(receiverSocket).emit('newMessage', { 
+          senderId: req.user._id, 
+          content, 
+          timestamp: message.createdAt,
+          _id: message._id 
+        });
+        console.log('Real-time message emitted to receiver');
+      } else {
+        console.log('Receiver not online');
+      }
+    }
+    
     res.status(201).json(message);
   } catch (error) {
+    console.error('Error in POST /chat:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

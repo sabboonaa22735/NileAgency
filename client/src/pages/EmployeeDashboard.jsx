@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { io } from 'socket.io-client';
 import { 
   FiSearch, FiBriefcase, FiBookmark, FiMessageSquare, FiBell, FiUser, FiLogOut, 
   FiMapPin, FiDollarSign, FiClock, FiMenu, FiSend, FiArrowLeft, FiFileText, 
@@ -9,7 +10,8 @@ import {
   FiSettings, FiFolder, FiStar, FiMoreVertical, FiFilter, FiGrid, FiList,
   FiCommand, FiZap, FiLayers, FiBarChart2, FiEdit2, FiFile, FiCheckCircle,
   FiAlertCircle, FiXCircle, FiPhone, FiVideo, FiPaperclip, FiShield,
-  FiArrowRight, FiTrendingDown, FiEye, FiMenu as FiMenuIcon, FiAlertTriangle, FiRefreshCw
+  FiArrowRight, FiTrendingDown, FiEye, FiMenu as FiMenuIcon, FiAlertTriangle, FiRefreshCw,
+  FiSmile, FiTrash2
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { notificationsApi, applicationsApi, jobsApi, usersApi, chatApi } from '../services/api';
@@ -118,6 +120,8 @@ export default function EmployeeDashboard() {
   const [conversations, setConversations] = useState([]);
   const [stats, setStats] = useState({ applications: 0, interviews: 0, profileViews: 0, savedJobs: 0 });
   const [loading, setLoading] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const messagesEndRef = useRef(null);
   
   const navigate = useNavigate();
@@ -167,10 +171,42 @@ export default function EmployeeDashboard() {
     }
   }, [showCommandPalette]);
 
-  useEffect(() => {
+useEffect(() => {
     fetchNotifications();
     fetchDashboardData();
+    fetchInitialUnreadCount();
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchDashboardData();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchInitialUnreadCount = async () => {
+    try {
+      const convRes = await chatApi.getConversations();
+      const convList = Array.isArray(convRes.data) ? convRes.data : Object.values(convRes.data || {});
+      const totalUnread = convList.reduce((sum, conv) => sum + (conv.unread || 0), 0);
+      setUnreadMessages(totalUnread);
+    } catch (error) {
+      console.error('Error fetching initial unread count:', error);
+    }
+  };
+
+  useEffect(() => {
+    const newSocket = io('http://localhost:5001');
+    const userId = user?._id || user?.id;
+    if (userId) {
+      newSocket.emit('join', userId);
+      newSocket.on('newMessage', (msg) => {
+        if (activeTab !== 'messages') {
+          setUnreadMessages(prev => prev + 1);
+        }
+      });
+    }
+    setSocket(newSocket);
+    return () => newSocket.disconnect();
+  }, [user, activeTab]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -186,11 +222,26 @@ export default function EmployeeDashboard() {
       const res = await notificationsApi.getAll();
       const data = Array.isArray(res.data) ? res.data : (res.data.notifications || []);
       setNotifications(data);
+} catch (error) {
+      console.error('Error fetching conversations:', error);
+      setConversations([]);
+    }
+  };
+
+  const fetchContacts = async () => {
+    try {
+      const contactsRes = await chatApi.getContacts();
+      const contacts = Array.isArray(contactsRes.data) ? contactsRes.data : [];
+      setConversations(contacts);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setNotifications([]);
-    } finally {
-      setNotificationsLoading(false);
+      console.error('Error fetching contacts:', error);
+      try {
+        const convRes = await chatApi.getConversations();
+        const convData = convRes.data ? (Array.isArray(convRes.data) ? convRes.data : Object.values(convRes.data)) : [];
+        setConversations(convData);
+      } catch (err) {
+        setConversations([]);
+      }
     }
   };
 
@@ -410,6 +461,31 @@ export default function EmployeeDashboard() {
               )}
             </button>
 
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveTab('messages')}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              className={activeTab === 'messages' ? (darkMode ? 'bg-slate-700' : 'bg-slate-100') : (darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100')}
+            >
+              <motion.div
+                animate={activeTab === 'messages' ? { scale: [1, 1.2, 1] } : {}}
+                transition={{ duration: 0.3 }}
+              >
+                <svg className={`w-5 h-5 ${activeTab === 'messages' ? 'text-cyan-400' : textSecondary}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+              </motion.div>
+              {conversations.filter(c => c.unread).length > 0 && (
+                <motion.span 
+                  className="absolute top-0 right-0 w-3 h-3 bg-cyan-500 rounded-full"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                />
+              )}
+            </motion.button>
+
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -524,13 +600,19 @@ export default function EmployeeDashboard() {
             {sidebarItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const showBadge = item.id === 'messages' && unreadMessages > 0;
               return (
                 <motion.button
                   key={item.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    if (item.id === 'messages') {
+                      setUnreadMessages(0);
+                    }
+                  }}
                   whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.98 }}
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
@@ -544,7 +626,14 @@ export default function EmployeeDashboard() {
                   }`}
                 >
                   <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <div className="relative">
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {item.id === 'messages' && unreadMessages > 0 && (
+                        <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '18px', height: '18px', backgroundColor: 'red', color: 'white', fontSize: '10px', fontWeight: 'bold', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                          {unreadMessages > 9 ? '9+' : unreadMessages}
+                        </span>
+                      )}
+                    </div>
                   </motion.div>
                   <AnimatePresence>
                     {!sidebarCollapsed && (
@@ -593,17 +682,31 @@ export default function EmployeeDashboard() {
                 <nav className="space-y-1">
                   {sidebarItems.map((item) => {
                     const Icon = item.icon;
+                    const showBadge = item.id === 'messages' && unreadMessages > 0;
                     return (
                       <motion.button
                         key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
+                        onClick={() => { 
+                          setActiveTab(item.id); 
+                          setShowMobileMenu(false);
+                          if (item.id === 'messages') {
+                            setUnreadMessages(0);
+                          }
+                        }}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                           activeTab === item.id
                             ? darkMode ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
                             : darkMode ? 'text-slate-400 hover:bg-slate-700/50' : 'text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        <Icon className="w-5 h-5" />
+                        <div className="relative">
+                          <Icon className="w-5 h-5" />
+                          {item.id === 'messages' && unreadMessages > 0 && (
+                            <span style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '18px', height: '18px', backgroundColor: 'red', color: 'white', fontSize: '10px', fontWeight: 'bold', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                              {unreadMessages > 9 ? '9+' : unreadMessages}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-sm font-medium">{item.label}</span>
                       </motion.button>
                     );
@@ -631,7 +734,7 @@ export default function EmployeeDashboard() {
             <ApplicationsTab darkMode={darkMode} applications={applications} setApplications={setApplications} />
           )}
           {activeTab === 'messages' && (
-            <MessagesTab darkMode={darkMode} conversations={conversations} />
+            <MessagesTab darkMode={darkMode} socket={socket} />
           )}
           {activeTab === 'settings' && (
             <SettingsTab darkMode={darkMode} />
@@ -792,6 +895,7 @@ const DashboardTab = ({ darkMode, jobs = [], applications = [], stats, loading }
 };
 
 const JobsTab = ({ darkMode, jobs = [], setJobs }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
@@ -846,8 +950,8 @@ const JobsTab = ({ darkMode, jobs = [], setJobs }) => {
                 </div>
               </div>
               <div className="flex flex-row md:flex-col gap-2 flex-shrink-0">
-                <button className="px-6 py-2 bg-indigo-500 text-white rounded-xl text-center font-medium hover:bg-indigo-600 transition-colors">View</button>
-                <button className="px-6 py-2 bg-slate-700 text-white rounded-xl text-center font-medium hover:bg-slate-600 transition-colors">Apply</button>
+                <button onClick={() => navigate(`/jobs/${job._id || job.id}`)} className="px-6 py-2 bg-indigo-500 text-white rounded-xl text-center font-medium hover:bg-indigo-600 transition-colors">View</button>
+                <button onClick={() => navigate(`/apply/${job._id || job.id}`)} className="px-6 py-2 bg-slate-700 text-white rounded-xl text-center font-medium hover:bg-slate-600 transition-colors">Apply</button>
               </div>
             </div>
           </motion.div>
@@ -858,6 +962,7 @@ const JobsTab = ({ darkMode, jobs = [], setJobs }) => {
 };
 
 const ApplicationsTab = ({ darkMode, applications = [], setApplications }) => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-600';
@@ -913,7 +1018,7 @@ const ApplicationsTab = ({ darkMode, applications = [], setApplications }) => {
                   <span className="flex items-center gap-1"><FiClock className="w-4 h-4" />Applied: {new Date(app.createdAt || app.date).toLocaleDateString()}</span>
                 </div>
               </div>
-              <button className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-600">View Job</button>
+              <button onClick={() => navigate(`/jobs/${app.jobId?._id || app.jobId}`)} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-600">View Job</button>
             </div>
           </motion.div>
         ))}
@@ -922,85 +1027,432 @@ const ApplicationsTab = ({ darkMode, applications = [], setApplications }) => {
   );
 };
 
-const MessagesTab = ({ darkMode, conversations = [] }) => {
+const MessagesTab = ({ darkMode, socket }) => {
+  const [conversations, setConversations] = useState([]);
+  const [admin, setAdmin] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [messageMenuId, setMessageMenuId] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [selectedMessages, setSelectedMessages] = useState([]);
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
   const textPrimary = darkMode ? 'text-slate-100' : 'text-slate-900';
   const textSecondary = darkMode ? 'text-slate-400' : 'text-slate-600';
   const bgCard = darkMode ? 'bg-slate-800' : 'bg-white';
   const borderColor = darkMode ? 'border-slate-700' : 'border-slate-200';
 
-  const displayConversations = conversations.length > 0 ? conversations : mockMessages;
+  const emojis = ['😊', '😂', '❤️', '👍', '🎉', '🔥', '💯', '🙏', '😍', '🤔', '😎', '🥳'];
+
+  useEffect(() => {
+    fetchAdmin();
+    fetchConversations();
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNewMessage = (msg) => {
+      if (selectedChat && msg.senderId?.toString() === selectedChat._id?.toString()) {
+        setMessages(prev => [...prev, msg]);
+        scrollToBottom();
+      }
+      fetchConversations();
+    };
+
+    socket.on('newMessage', handleNewMessage);
+    return () => socket.off('newMessage', handleNewMessage);
+  }, [socket, selectedChat]);
+
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat._id);
+    }
+  }, [selectedChat]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu(null);
+      setShowEmojiPicker(false);
+      setShowOptions(false);
+      setMessageMenuId(null);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const fetchAdmin = async () => {
+    try {
+      const response = await chatApi.getAdmin();
+      setAdmin(response.data);
+      if (response.data?._id) {
+        setSelectedChat(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch admin:', error);
+    }
+  };
+
+  const fetchConversations = async () => {
+    try {
+      const response = await chatApi.getConversations();
+      const convList = Object.values(response.data);
+      setConversations(convList);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch conversations:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchMessages = async (partnerId) => {
+    try {
+      const response = await chatApi.getMessages(partnerId);
+      setMessages(response.data);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+      setMessages([]);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedChat || sending) return;
+
+    setSending(true);
+    try {
+      const response = await chatApi.sendMessage({
+        receiverId: selectedChat._id,
+        content: newMessage.trim()
+      });
+      setMessages(prev => [...prev, response.data]);
+      setNewMessage('');
+      fetchConversations();
+      scrollToBottom();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewMessage(prev => prev + `[File: ${file.name}]`);
+    }
+  };
+
+  const addEmoji = (emoji) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const toggleMessageMenu = (e, msgId) => {
+    e.stopPropagation();
+    setMessageMenuId(messageMenuId === msgId ? null : msgId);
+  };
+
+  const deleteMessage = (msgId) => {
+    setMessages(prev => prev.filter(m => m._id !== msgId));
+    setMessageMenuId(null);
+    setContextMenu(null);
+  };
+
+  const handleContextMenu = (e, msg) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      msg: msg
+    });
+  };
+
+  const copyMessage = (content) => {
+    navigator.clipboard.writeText(content);
+    setContextMenu(null);
+  };
+
+  const startEditing = (msg) => {
+    setEditingMessageId(msg._id);
+    setEditText(msg.content);
+    setContextMenu(null);
+  };
+
+  const saveEdit = (msgId) => {
+    setMessages(prev => prev.map(m => m._id === msgId ? { ...m, content: editText } : m));
+    setEditingMessageId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditText('');
+  };
+
+  const replyToMessage = (msg) => {
+    setNewMessage(prev => prev + `[Reply to: ${msg.content.substring(0, 30)}...]\n`);
+    setContextMenu(null);
+  };
+
+  const toggleSelectMessage = (msgId) => {
+    setSelectedMessages(prev => 
+      prev.includes(msgId) ? prev.filter(id => id !== msgId) : [...prev, msgId]
+    );
+  };
+
+  const deleteSelectedMessages = () => {
+    setMessages(prev => prev.filter(m => !selectedMessages.includes(m._id)));
+    setSelectedMessages([]);
+  };
+
+  const displayAdmin = admin ? {
+    _id: admin._id,
+    firstName: admin.email?.split('@')[0] || 'Admin',
+    email: admin.email,
+    role: 'admin',
+    lastMessage: conversations.find(c => c._id === admin._id)?.lastMessage || '',
+    timestamp: conversations.find(c => c._id === admin._id)?.timestamp,
+    unread: conversations.find(c => c._id === admin._id)?.unread || 0
+  } : null;
 
   return (
     <>
       <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6">
         <h1 className={`text-2xl md:text-3xl font-bold ${textPrimary} mb-2`}>Messages</h1>
-        <p className={textSecondary}>{displayConversations.length} conversations</p>
+        <p className={textSecondary}>{admin ? 'Chat with Admin' : 'Loading...'}</p>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-1">
           <div className={`${bgCard} border ${borderColor} rounded-2xl overflow-hidden`}>
             <div className={`p-4 border-b ${borderColor}`}>
-              <div className="relative">
-                <FiSearch className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary}`} />
-                <input type="text" placeholder="Search messages..." className={`w-full pl-10 pr-4 py-2 bg-transparent outline-none ${textPrimary} placeholder:${textSecondary}`} />
-              </div>
+              <h3 className={`font-semibold ${textPrimary}`}>Contacts</h3>
             </div>
             <div className="max-h-96 overflow-y-auto">
-              {displayConversations.map((msg, index) => (
-                <button key={msg._id || msg.id || index} onClick={() => setSelectedChat(msg)} className={`w-full flex items-center gap-3 p-4 transition ${selectedChat?._id === msg._id || selectedChat?.id === msg.id ? (darkMode ? 'bg-indigo-500/20' : 'bg-indigo-50') : 'hover:bg-slate-700/30'}`}>
+              {loading ? (
+                <div className="p-4 text-center">
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
+                    <FiRefreshCw className={`w-6 h-6 mx-auto ${textSecondary}`} />
+                  </motion.div>
+                </div>
+              ) : displayAdmin ? (
+                <button 
+                  key={displayAdmin._id} 
+                  onClick={() => setSelectedChat(displayAdmin)} 
+                  className={`w-full flex items-center gap-3 p-4 transition ${selectedChat?._id === displayAdmin._id ? (darkMode ? 'bg-indigo-500/20' : 'bg-indigo-50') : 'hover:bg-slate-700/30'}`}
+                >
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">{msg.user?.firstName?.[0] || msg.avatar || 'U'}</span>
+                      <span className="text-white text-sm font-medium">A</span>
                     </div>
-                    {msg.online && <div className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${darkMode ? 'border-slate-800' : 'border-white'}`} />}
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between">
-                      <p className={`font-medium ${textPrimary}`}>{msg.user?.firstName || msg.name || 'User'}</p>
-                      <span className="text-xs text-slate-500">{msg.time || new Date(msg.timestamp).toLocaleTimeString()}</span>
+                      <p className={`font-medium ${textPrimary}`}>Admin</p>
+                      <span className="text-xs text-slate-500">
+                        {displayAdmin.timestamp ? new Date(displayAdmin.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
                     </div>
-                    <p className={`text-sm truncate ${msg.unread ? textPrimary : textSecondary}`}>{msg.lastMessage || msg.message}</p>
+                    <p className={`text-sm truncate ${displayAdmin.unread > 0 ? textPrimary : textSecondary}`}>
+                      {displayAdmin.lastMessage || 'Start a conversation'}
+                    </p>
                   </div>
-                  {msg.unread > 0 && <div className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0" />}
+                  {displayAdmin.unread > 0 && <div className="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-xs text-white">{displayAdmin.unread}</div>}
                 </button>
-              ))}
+              ) : (
+                <div className="p-4 text-center">
+                  <p className={textSecondary}>No admin available</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         <div className="lg:col-span-2">
-          <div className={`${bgCard} border ${borderColor} rounded-2xl h-[500px] flex flex-col`}>
+          <div className={`${bgCard} border ${borderColor} rounded-2xl h-[500px] flex flex-col relative`}>
             {selectedChat ? (
               <>
-                <div className={`p-4 border-b ${borderColor} flex items-center gap-3`}>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    <span className="text-white text-sm">{selectedChat.user?.firstName?.[0] || selectedChat.avatar || 'U'}</span>
+                <div className={`p-4 border-b ${borderColor} flex items-center justify-between relative z-10`}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                      <span className="text-white text-sm">A</span>
+                    </div>
+                    <div>
+                      <h3 className={`font-semibold ${textPrimary}`}>Admin</h3>
+                      <p className="text-xs text-emerald-400">Online</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className={`font-semibold ${textPrimary}`}>{selectedChat.user?.firstName || selectedChat.name || 'User'}</h3>
-                    <p className="text-xs text-emerald-400">Online</p>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      type="button"
+                      onClick={() => { console.log('Voice call clicked'); alert('Voice call feature coming soon!'); }}
+                      style={{ padding: '8px', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent' }} 
+                      title="Voice Call"
+                    >
+                      <FiPhone style={{ width: '20px', height: '20px', color: '#6366f1' }} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { console.log('Video call clicked'); alert('Video call feature coming soon!'); }}
+                      style={{ padding: '8px', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent' }} 
+                      title="Video Call"
+                    >
+                      <FiVideo style={{ width: '20px', height: '20px', color: '#6366f1' }} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { console.log('Options clicked'); alert('Options: Search, Mute, Clear chat'); }}
+                      style={{ padding: '8px', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent' }} 
+                      title="More Options"
+                    >
+                      <FiMoreVertical style={{ width: '20px', height: '20px', color: '#6366f1' }} />
+                    </button>
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  <div className={`flex ${selectedChat.id % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] px-4 py-3 rounded-2xl ${selectedChat.id % 2 === 0 ? 'bg-indigo-500 text-white' : darkMode ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-900'}`}>
-                      <p>{selectedChat.lastMessage}</p>
-                      <div className={`flex items-center justify-end gap-1 mt-1 ${selectedChat.id % 2 === 0 ? 'text-white/70' : 'text-gray-400'}`}>
-                        <span className="text-xs">{selectedChat.time}</span>
-                      </div>
+                  {selectedMessages.length > 0 && (
+                    <div style={{ padding: '8px 16px', marginBottom: '8px', backgroundColor: darkMode ? '#334155' : '#e2e8f0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ color: darkMode ? '#f1f5f9' : '#1e293b', fontWeight: 500 }}>{selectedMessages.length} selected</span>
+                      <button onClick={deleteSelectedMessages} style={{ padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ef4444', color: 'white', border: 'none', fontSize: '12px' }}>Delete All</button>
                     </div>
-                  </div>
+                  )}
+                  {messages.map((msg, index) => {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    const isOwn = msg.senderId?.toString() === (currentUser._id || currentUser.id)?.toString();
+                    const isEditing = editingMessageId === msg._id;
+                    const isSelected = selectedMessages.includes(msg._id);
+                    return (
+                      <div key={msg._id || index} className={`flex ${isOwn ? 'justify-start' : 'justify-end'}`}>
+                        <div 
+                          onContextMenu={(e) => handleContextMenu(e, msg)}
+                          style={{ 
+                            position: 'relative', 
+                            maxWidth: '75%', 
+                            padding: isSelected ? '12px' : '12px 16px', 
+                            borderRadius: '16px', 
+                            backgroundColor: isSelected ? (darkMode ? '#4338ca' : '#c7d2fe') : (isOwn ? '#6366f1' : (darkMode ? '#334155' : 'white')), 
+                            color: isSelected ? 'white' : (isOwn ? 'white' : (darkMode ? '#f1f5f9' : '#1e293b')),
+                            border: isSelected ? '2px solid #818cf8' : (isOwn ? 'none' : `1px solid ${borderColor}`),
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ position: 'absolute', top: '50%', left: isOwn ? '-24px' : 'auto', right: isOwn ? 'auto' : '-24px', transform: 'translateY(-50%)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected}
+                              onChange={() => toggleSelectMessage(msg._id)}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                          </div>
+                          {isEditing ? (
+                            <div>
+                              <input 
+                                type="text" 
+                                value={editText} 
+                                onChange={(e) => setEditText(e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '6px', 
+                                  border: 'none', 
+                                  backgroundColor: darkMode ? '#1e293b' : '#f1f5f9',
+                                  color: 'inherit',
+                                  fontSize: '14px'
+                                }}
+                                autoFocus
+                              />
+                              <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                                <button onClick={() => saveEdit(msg._id)} style={{ padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#22c55e', color: 'white', border: 'none', fontSize: '11px' }}>Save</button>
+                                <button onClick={cancelEdit} style={{ padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#64748b', color: 'white', border: 'none', fontSize: '11px' }}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ margin: 0 }}>{msg.content}</p>
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '4px', opacity: 0.7 }}>
+                            <span style={{ fontSize: '11px' }}>{new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {isOwn && <FiCheck style={{ width: '12px', height: '12px' }} />}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
                 </div>
-                <form className={`p-4 border-t ${borderColor}`}>
-                  <div className="flex items-center gap-3">
-                    <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className={`flex-1 px-4 py-3 rounded-full outline-none ${darkMode ? 'bg-slate-700 text-white placeholder-gray-400' : 'bg-slate-100 text-slate-900 placeholder-gray-500'}`} />
-                    <button type="submit" className="p-3 rounded-full bg-indigo-500 text-white hover:bg-indigo-600 transition-colors">
-                      <FiSend className="w-5 h-5" />
+                <form onSubmit={handleSendMessage} style={{ padding: '16px', borderTop: `1px solid ${borderColor}`, position: 'relative' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button 
+                      type="button"
+                      onClick={() => { console.log('Emoji clicked'); setShowEmojiPicker(!showEmojiPicker); }}
+                      style={{ padding: '8px', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent' }}
+                      title="Emoji"
+                    >
+                      <FiSmile style={{ width: '20px', height: '20px', color: '#6366f1' }} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { console.log('File clicked'); fileInputRef.current?.click(); }}
+                      style={{ padding: '8px', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent' }}
+                      title="Attach File"
+                    >
+                      <FiPaperclip style={{ width: '20px', height: '20px', color: '#6366f1' }} />
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      style={{ display: 'none' }}
+                      id="file-input"
+                    />
+                    <input 
+                      type="text" 
+                      value={newMessage} 
+                      onChange={(e) => setNewMessage(e.target.value)} 
+                      placeholder="Type a message..." 
+                      style={{ flex: 1, padding: '12px 16px', borderRadius: '9999px', outline: 'none', backgroundColor: darkMode ? '#334155' : '#f1f5f9', color: darkMode ? 'white' : '#0f172a', border: 'none' }}
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!newMessage.trim() || sending}
+                      style={{ padding: '12px', borderRadius: '9999px', backgroundColor: '#6366f1', color: 'white', cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed', opacity: newMessage.trim() && !sending ? 1 : 0.5 }}
+                    >
+                      <FiSend style={{ width: '20px', height: '20px' }} />
                     </button>
                   </div>
+                  {showEmojiPicker && (
+                    <div style={{ position: 'absolute', bottom: '64px', left: '16px', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 50, backgroundColor: darkMode ? '#334155' : 'white', border: darkMode ? 'none' : '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {emojis.map((emoji, i) => (
+                          <button 
+                            key={i}
+                            type="button"
+                            onClick={() => addEmoji(emoji)}
+                            style={{ padding: '8px', fontSize: '20px', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent', border: 'none' }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </form>
               </>
             ) : (
@@ -1015,6 +1467,28 @@ const MessagesTab = ({ darkMode, conversations = [] }) => {
           </div>
         </div>
       </div>
+      {contextMenu && (
+        <div 
+          style={{ 
+            position: 'fixed', 
+            top: contextMenu.y, 
+            left: contextMenu.x, 
+            zIndex: 1000,
+            backgroundColor: darkMode ? '#1e293b' : 'white',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            border: darkMode ? 'none' : '1px solid #e2e8f0',
+            minWidth: '150px',
+            overflow: 'hidden'
+          }}
+        >
+          <button onClick={() => startEditing(contextMenu.msg)} style={{ width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: darkMode ? '#f1f5f9' : '#1e293b', fontSize: '13px' }}>Edit</button>
+          <button onClick={() => copyMessage(contextMenu.msg.content)} style={{ width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: darkMode ? '#f1f5f9' : '#1e293b', fontSize: '13px' }}>Copy</button>
+          <button onClick={() => replyToMessage(contextMenu.msg)} style={{ width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: darkMode ? '#f1f5f9' : '#1e293b', fontSize: '13px' }}>Reply</button>
+          <button onClick={() => toggleSelectMessage(contextMenu.msg._id)} style={{ width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: darkMode ? '#f1f5f9' : '#1e293b', fontSize: '13px' }}>Select</button>
+          <button onClick={() => deleteMessage(contextMenu.msg._id)} style={{ width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '13px' }}>Delete</button>
+        </div>
+      )}
     </>
   );
 };

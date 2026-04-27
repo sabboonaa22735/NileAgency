@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUsers, FiBriefcase, FiDollarSign, FiMessageSquare, FiLogOut, FiTrash2, FiShield, FiActivity, FiClock, FiEye, FiSend, FiUser, FiArrowLeft, FiPlus, FiEdit, FiFile, FiExternalLink, FiUpload, FiSearch, FiChevronDown, FiMoon, FiSun, FiX, FiCheck } from 'react-icons/fi';
+import { FiUsers, FiBriefcase, FiDollarSign, FiMessageSquare, FiLogOut, FiTrash2, FiShield, FiActivity, FiClock, FiEye, FiSend, FiUser, FiArrowLeft, FiPlus, FiEdit, FiFile, FiExternalLink, FiUpload, FiSearch, FiChevronDown, FiMoon, FiSun, FiX, FiCheck, FiEdit2, FiMoreVertical, FiPhone, FiVideo } from 'react-icons/fi';
 import { adminApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
@@ -452,13 +452,23 @@ const [chatUsers, setChatUsers] = useState([]);
   const loadChatUsers = async () => { try { const res = await adminApi.getChatUsers(); setChatUsers(res.data); } catch (err) { console.error(err); } };
   const loadConversations = async () => { try { const res = await adminApi.getChatConversations(); setConversations(res.data); } catch (err) { console.error(err); } };
   const loadMessages = async (partnerId) => { try { const res = await adminApi.getChatMessages(partnerId); setMessages(res.data); } catch (err) { console.error(err); } };
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChatUser) return;
     const userId = user?._id || user?.id;
-    socket.emit('sendMessage', { senderId: userId, receiverId: selectedChatUser._id, message: newMessage });
-    setMessages(prev => [...prev, { senderId: userId, receiverId: selectedChatUser._id, content: newMessage, createdAt: new Date(), tempId: Date.now() }]);
-    setNewMessage('');
+    const messageContent = newMessage.trim();
+    
+    try {
+      console.log('Sending message via API:', { receiverId: selectedChatUser._id, content: messageContent });
+      const res = await adminApi.sendChatMessage({ receiverId: selectedChatUser._id, content: messageContent });
+      console.log('Message sent:', res.data);
+      
+      setMessages(prev => [...prev, { senderId: userId, receiverId: selectedChatUser._id, content: messageContent, createdAt: new Date(), tempId: Date.now() }]);
+      setNewMessage('');
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      alert('Failed to send message: ' + (err.response?.data?.message || err.message));
+    }
   };
   const handleSelectChatUser = async (chatUser) => { setSelectedChatUser(chatUser); await loadMessages(chatUser._id); };
   const handleBackToList = () => { setSelectedChatUser(null); setMessages([]); loadConversations(); };
@@ -691,6 +701,21 @@ const renderPaymentsTab = () => (
                   {selectedApplication.coverLetter || 'No cover letter provided.'}
                 </div>
               </div>
+              {selectedApplication.resume && (
+                <div>
+                  <p className={`font-medium mb-2 ${textPrimary}`}>Resume/CV</p>
+                  <a
+                    href={selectedApplication.resume}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-2 px-4 py-3 rounded-xl ${darkMode ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'} transition`}
+                  >
+                    <FiFile className="w-5 h-5" />
+                    <span className="font-medium">View Resume</span>
+                    <FiExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
             </div>
 
             <div className={`rounded-2xl border ${borderColor} ${bgCard} p-6 space-y-3`}>
@@ -831,36 +856,73 @@ const renderPaymentsTab = () => (
   const renderSettingsTab = () => <SettingsPage darkMode={darkMode} onDarkModeChange={setDarkMode} />;
 
   const renderMessagesTab = () => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`rounded-2xl border ${borderColor} ${bgCard} overflow-hidden`}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`rounded-3xl border ${borderColor} ${bgCard} overflow-hidden shadow-2xl`}>
       <div className="flex h-[calc(100vh-12rem)]">
         <div className={`${selectedChatUser ? 'hidden md:block' : 'block'} w-full md:w-1/3 border-r ${borderColor}`}>
-          <div className={`p-5 border-b ${borderColor} ${darkMode ? 'bg-indigo-600' : 'bg-indigo-600'}`}>
-            <h2 className="text-lg font-semibold text-white">Messages</h2>
-            <p className="text-indigo-200 text-sm">Chat with users</p>
+          <div className={`p-5 border-b ${borderColor} bg-gradient-to-r from-indigo-600 to-purple-600`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-white">Messages</h2>
+                <p className="text-indigo-200 text-sm">Chat with users</p>
+              </div>
+              <motion.div whileHover={{ scale: 1.1 }} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <FiEdit2 className="w-4 h-4 text-white" />
+              </motion.div>
+            </div>
           </div>
           <div className="overflow-y-auto h-[calc(100%-5rem)]">
             {Object.keys(conversations).length === 0 && chatUsers.length === 0 ? (
-              <div className={`p-4 text-center ${textSecondary}`}>No conversations yet</div>
+              <div className={`p-6 text-center ${textSecondary}`}>
+                <FiMessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No conversations yet</p>
+              </div>
             ) : (
               <>
-                {Object.entries(conversations).map(([userId, conv]) => {
-                  const convUser = conv.user || {};
-                  const displayName = convUser.email || convUser.firstName ? (convUser.firstName ? `${convUser.firstName} ${convUser.lastName || ''}` : convUser.email) : 'Unknown User';
+                {Object.entries(conversations).filter(([id, conv]) => conv.email).map(([userId, conv]) => {
+                  const displayName = conv.firstName ? `${conv.firstName} ${conv.lastName || ''}` : conv.email;
+                  const initial = displayName[0]?.toUpperCase() || 'U';
                   return (
-                    <button key={userId} onClick={() => handleSelectChatUser({ _id: userId, email: convUser.email, role: convUser.role, firstName: convUser.firstName, lastName: convUser.lastName })} className={`flex items-center gap-3 w-full p-4 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-indigo-50'} transition border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'} ${selectedChatUser?._id === userId ? (darkMode ? 'bg-slate-700' : 'bg-indigo-50') : ''}`}>
-                      <div className={`w-10 h-10 rounded-full ${darkMode ? 'bg-indigo-500' : 'bg-indigo-600'} flex items-center justify-center`}><FiUser className="w-5 h-5 text-white" /></div>
-                      <div className="flex-1 text-left min-w-0"><p className={`font-medium ${textPrimary} truncate`}>{displayName}</p><p className={`text-xs ${textMuted} truncate`}>{conv.lastMessage}</p></div>
-                      {conv.unread > 0 && <span className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">{conv.unread}</span>}
-                    </button>
+                    <motion.button 
+                      key={userId} 
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => handleSelectChatUser({ _id: userId, email: conv.email, role: conv.role, firstName: conv.firstName, lastName: conv.lastName })} 
+                      className={`flex items-center gap-3 w-full p-4 transition-all border-b ${darkMode ? 'hover:bg-slate-700/50 border-slate-800' : 'hover:bg-indigo-50 border-slate-100'} ${selectedChatUser?._id === userId ? (darkMode ? 'bg-indigo-600/20' : 'bg-indigo-50') : ''}`}
+                    >
+                      <motion.div whileHover={{ scale: 1.05 }} className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                        <span className="text-white font-bold">{initial}</span>
+                      </motion.div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className={`font-medium ${textPrimary} truncate`}>{displayName}</p>
+                          {conv.unread > 0 && (
+                            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {conv.unread}
+                            </motion.span>
+                          )}
+                        </div>
+                        <p className={`text-xs ${textMuted} truncate`}>{conv.lastMessage || 'No messages'}</p>
+                      </div>
+                    </motion.button>
                   );
                 })}
-                {chatUsers.filter(u => !conversations[u._id]).map(u => {
+                {chatUsers.filter(u => u.email && !conversations[u._id]).map(u => {
                   const displayName = u.firstName ? `${u.firstName} ${u.lastName || ''}` : u.email;
+                  const initial = displayName[0]?.toUpperCase() || 'U';
                   return (
-                    <button key={u._id} onClick={() => handleSelectChatUser(u)} className={`flex items-center gap-3 w-full p-4 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-indigo-50'} transition border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'} ${selectedChatUser?._id === u._id ? (darkMode ? 'bg-slate-700' : 'bg-indigo-50') : ''}`}>
-                      <div className={`w-10 h-10 rounded-full ${darkMode ? 'bg-indigo-500' : 'bg-indigo-600'} flex items-center justify-center`}><FiUser className="w-5 h-5 text-white" /></div>
-                      <div className="flex-1 text-left min-w-0"><p className={`font-medium ${textPrimary} truncate`}>{displayName}</p><p className={`text-xs ${textSecondary} capitalize`}>{u.role}</p></div>
-                    </button>
+                    <motion.button 
+                      key={u._id} 
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => handleSelectChatUser(u)} 
+                      className={`flex items-center gap-3 w-full p-4 transition-all border-b ${darkMode ? 'hover:bg-slate-700/50 border-slate-800' : 'hover:bg-indigo-50 border-slate-100'} ${selectedChatUser?._id === u._id ? (darkMode ? 'bg-indigo-600/20' : 'bg-indigo-50') : ''}`}
+                    >
+                      <motion.div whileHover={{ scale: 1.05 }} className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                        <span className="text-white font-bold">{initial}</span>
+                      </motion.div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className={`font-medium ${textPrimary} truncate`}>{displayName}</p>
+                        <p className={`text-xs ${textSecondary} capitalize`}>{u.role}</p>
+                      </div>
+                    </motion.button>
                   );
                 })}
               </>
@@ -870,20 +932,55 @@ const renderPaymentsTab = () => (
         <div className={`${selectedChatUser ? 'block' : 'hidden md:block'} flex-1 flex flex-col`}>
           {selectedChatUser ? (
             <>
-              <div className={`p-4 border-b ${borderColor} flex items-center gap-3`}>
-                <button onClick={handleBackToList} className={`md:hidden p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-200'} transition`}><FiArrowLeft className={`w-5 h-5 ${textSecondary}`} /></button>
-                <div className={`w-10 h-10 rounded-full ${darkMode ? 'bg-indigo-500' : 'bg-indigo-600'} flex items-center justify-center`}><FiUser className="w-5 h-5 text-white" /></div>
-                <div><p className={`font-medium ${textPrimary}`}>{selectedChatUser.firstName ? `${selectedChatUser.firstName} ${selectedChatUser.lastName || ''}` : selectedChatUser.email}</p><p className={`text-xs ${textSecondary} capitalize`}>{selectedChatUser.role}</p></div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/30">
+              <motion.div 
+                initial={{ y: -20 }}
+                animate={{ y: 0 }}
+                className={`p-4 border-b ${borderColor} flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600`}
+              >
+                <button onClick={handleBackToList} className={`md:hidden p-2 rounded-lg hover:bg-white/20 transition`}>
+                  <FiArrowLeft className="w-5 h-5 text-white" />
+                </button>
+                <motion.div whileHover={{ scale: 1.1 }} className="relative">
+                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <span className="text-white font-bold">{selectedChatUser.firstName?.[0] || selectedChatUser.email?.[0] || 'U'}</span>
+                  </div>
+                  <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 ${darkMode ? 'border-slate-800' : 'border-white'} ${selectedChatUser.role === 'recruiter' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                </motion.div>
+                <div className="flex-1">
+                  <p className="font-bold text-white">{selectedChatUser.firstName ? `${selectedChatUser.firstName} ${selectedChatUser.lastName || ''}` : selectedChatUser.email}</p>
+                  <p className="text-xs text-white/80 capitalize">{selectedChatUser.role}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <motion.button whileHover={{ scale: 1.1 }} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition">
+                    <FiPhone className="w-5 h-5 text-white" />
+                  </motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition">
+                    <FiMoreVertical className="w-5 h-5 text-white" />
+                  </motion.button>
+                </div>
+              </motion.div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-slate-900/5 to-slate-900/10">
                 {messages.map((msg, i) => {
                   const currentUserId = user?._id || user?.id;
                   const isMe = msg.senderId === currentUserId;
                   return (
-                    <motion.div key={msg._id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs md:max-w-md px-4 py-2.5 rounded-2xl ${isMe ? (darkMode ? 'bg-indigo-600 text-white' : 'bg-indigo-600 text-white') : (darkMode ? 'bg-slate-700 text-slate-100' : 'bg-white border border-slate-200 text-slate-900')}`}>
-                        <p>{msg.content}</p>
-                        <p className={`text-xs mt-1 ${isMe ? 'text-indigo-200' : textMuted}`}>{new Date(msg.createdAt || msg.timestamp).toLocaleTimeString()}</p>
+                    <motion.div 
+                      key={msg._id || i} 
+                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: i * 0.02 }}
+                      className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}
+                    >
+                      <div className={`max-w-xs md:max-w-md px-5 py-3 rounded-2xl shadow-lg ${
+                        isMe 
+                          ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-bl-md' 
+                          : 'bg-white text-slate-900 border border-slate-200 shadow-xl rounded-br-md'
+                      }`}>
+                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                        <div className={`flex items-center justify-end gap-1.5 mt-1.5 ${isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                          <span className="text-[10px]">{new Date(msg.createdAt || msg.timestamp).toLocaleTimeString()}</span>
+                          {isMe && <span className="text-xs">✓✓</span>}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -891,16 +988,56 @@ const renderPaymentsTab = () => (
                 <div ref={messagesEndRef} />
               </div>
               <form onSubmit={handleSendMessage} className={`p-4 border-t ${borderColor} ${darkMode ? 'bg-slate-800/50' : 'bg-white'}`}>
-                <div className="flex gap-2">
-                  <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className={`flex-1 px-4 py-3 rounded-xl border ${borderColor} ${darkMode ? 'bg-slate-700/50 text-slate-100 placeholder:text-slate-500' : 'bg-slate-50 text-slate-900 placeholder:text-slate-400'} focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition`} />
-                  <motion.button type="submit" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} disabled={!newMessage.trim()} className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"><FiSend className="w-5 h-5" /></motion.button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    {['📎', '🎤', '📷'].map((icon, i) => (
+                      <motion.button
+                        key={i}
+                        type="button"
+                        whileHover={{ scale: 1.2 }}
+                        className={`p-2 rounded-xl ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-slate-200'} transition-colors`}
+                      >
+                        <span>{icon}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                  <input 
+                    type="text" 
+                    value={newMessage} 
+                    onChange={(e) => setNewMessage(e.target.value)} 
+                    placeholder="Type your message..." 
+                    className={`flex-1 px-5 py-3 rounded-2xl border ${borderColor} ${darkMode ? 'bg-slate-700/50 text-slate-100 placeholder:text-slate-400' : 'bg-slate-50 text-slate-900 placeholder:text-slate-400'} focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition`} 
+                  />
+                  <motion.button 
+                    type="submit" 
+                    whileHover={{ scale: 1.05 }} 
+                    whileTap={{ scale: 0.95 }} 
+                    disabled={!newMessage.trim()} 
+                    className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FiSend className="w-5 h-5" />
+                  </motion.button>
                 </div>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center"><FiMessageSquare className={`w-12 h-12 mx-auto mb-4 ${textMuted}`} /><p className={textSecondary}>Select a user to start chatting</p></div>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 flex items-center justify-center"
+            >
+              <div className="text-center">
+                <motion.div 
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl shadow-indigo-500/30"
+                >
+                  <FiMessageSquare className="w-10 h-10 text-white" />
+                </motion.div>
+                <h3 className={`text-xl font-bold ${textPrimary} mb-2`}>Select a Conversation</h3>
+                <p className={textSecondary}>Choose a user to start chatting</p>
+              </div>
+            </motion.div>
           )}
         </div>
       </div>

@@ -193,19 +193,37 @@ export default function AdminLayout({
             {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
           </button>
 
-            <div className="relative z-[70]">
+<div className="relative z-[70]">
 <button 
-            type="button"
-            onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }}
-            style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}
-            className={darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}
-          >
-            <FiBell className={`w-5 h-5 ${textSecondary}`} />
-            {(pendingCount > 0 || (notifications && notifications.length > 0)) && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
-            )}
-          </button>
+              type="button"
+              onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}
+              className={darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}
+            >
+              <FiBell className={`w-5 h-5 ${textSecondary}`} />
+              {(pendingCount > 0 || (notifications && notifications.length > 0)) && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
+              )}
+            </button>
             </div>
+
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { setActiveTab('messages'); setProfileOpen(false); }}
+              style={{ position: 'relative', zIndex: 999, background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              className={activeTab === 'messages' ? (darkMode ? 'bg-slate-700' : 'bg-slate-100') : (darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100')}
+            >
+              <motion.div
+                animate={activeTab === 'messages' ? { scale: [1, 1.2, 1] } : {}}
+                transition={{ duration: 0.3 }}
+              >
+                <svg className={`w-5 h-5 ${activeTab === 'messages' ? 'text-cyan-400' : textSecondary}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+              </motion.div>
+            </motion.button>
 
             <div className="relative">
               <button 

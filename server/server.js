@@ -14,6 +14,14 @@ require('./config/passport')(passport);
 const app = express();
 const server = http.createServer(app);
 
+global.io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true
+  }
+});
+global.userSockets = {};
+
 app.use(session({
   secret: process.env.JWT_SECRET || 'nileagencysecretkey2024',
   resave: false,
@@ -50,20 +58,13 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
-const io = new Server(server, {
-  cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
-
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/nileagency';
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log(err));
 
-const userSockets = {};
+global.userSockets = global.userSockets || {};
+const userSockets = global.userSockets;
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
@@ -77,21 +78,32 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', async ({ senderId, receiverId, message }) => {
     console.log('Message sent from', senderId, 'to', receiverId);
     try {
+      const User = require('./models/User');
+      
+      const receiver = await User.findById(receiverId);
+      if (!receiver || !receiver.email || receiver.registrationStatus === 'rejected') {
+        console.log('Cannot send message - receiver not authorized:', receiverId);
+        return;
+      }
+      
+      const sender = await User.findById(senderId);
+      if (!sender || !sender.email || (sender.role !== 'admin' && sender.registrationStatus === 'rejected')) {
+        console.log('Cannot send message - sender not authorized:', senderId);
+        return;
+      }
+      
       const newMessage = new Message({
         senderId,
         receiverId,
         content: message
       });
       await newMessage.save();
-
-      const User = require('./models/User');
-      const sender = await User.findById(senderId);
       
       const Notification = require('./models/Notification');
       const notification = new Notification({
         userId: receiverId,
         type: 'message',
-        title: `New message from ${sender?.email?.split('@')[0] || 'User'}`,
+        title: `New message from ${sender.email.split('@')[0] || 'User'}`,
         message: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
         link: '/chat'
       });
@@ -142,3 +154,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+module.exports = { io, userSockets };
