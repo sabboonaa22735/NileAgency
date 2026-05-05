@@ -126,7 +126,8 @@ const [chatUsers, setChatUsers] = useState([]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, [messages]);
 
   const initSocket = () => {
-    socket = io('http://localhost:5001');
+    const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace('/api', '');
+    socket = io(socketUrl);
     const userId = user?._id || user?.id;
     if (userId) {
       socket.emit('join', userId);

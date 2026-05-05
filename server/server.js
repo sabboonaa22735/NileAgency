@@ -14,9 +14,18 @@ require('./config/passport')(passport);
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://bonsaagency.com',
+  'https://www.bonsaagency.com'
+].filter(Boolean);
+
+const prodEnv = process.env.NODE_ENV === 'production';
+
 global.io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: prodEnv ? process.env.FRONTEND_URL || allowedOrigins : allowedOrigins,
     credentials: true
   }
 });
@@ -33,7 +42,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: prodEnv ? process.env.FRONTEND_URL || allowedOrigins : allowedOrigins,
   credentials: true
 }));
 app.use(express.json());

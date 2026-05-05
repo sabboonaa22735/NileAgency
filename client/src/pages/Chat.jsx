@@ -105,7 +105,8 @@ export default function Chat() {
     if (!userId) return;
     
     try {
-      socket = io('http://localhost:5001', { timeout: 5000 });
+      const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace('/api', '');
+      socket = io(socketUrl, { timeout: 5000 });
       
       socket.on('connect', () => {
         socket.emit('join', userId);

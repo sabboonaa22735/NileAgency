@@ -194,7 +194,8 @@ useEffect(() => {
   };
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5001');
+    const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace('/api', '');
+    const newSocket = io(socketUrl);
     const userId = user?._id || user?.id;
     if (userId) {
       newSocket.emit('join', userId);
