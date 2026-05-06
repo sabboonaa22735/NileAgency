@@ -67,6 +67,15 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
+if (prodEnv) {
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientBuildPath));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
+
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/nileagency';
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
