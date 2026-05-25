@@ -24,7 +24,7 @@ export default function ForgotPassword() {
   };
 
   const handleGoogleReset = () => {
-    window.location.href = 'http://localhost:5001/api/auth/google';
+    window.location.href = '/api/auth/google';
   };
 
   if (submitted) {

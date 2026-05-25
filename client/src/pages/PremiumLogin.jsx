@@ -46,7 +46,7 @@ export default function PremiumLogin() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:5001/api/auth/google';
+    window.location.href = '/api/auth/google';
   };
 
   return (

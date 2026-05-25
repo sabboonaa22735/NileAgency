@@ -65,7 +65,7 @@ export default function Register() {
   const isDark = theme === 'dark';
 
   const handleGoogleRegister = () => {
-    window.location.href = 'http://localhost:5001/api/auth/google';
+    window.location.href = '/api/auth/google';
   };
 
   const validateForm = async () => {

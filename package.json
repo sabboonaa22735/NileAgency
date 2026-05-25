@@ -1,8 +1,7 @@
 {
   "name": "nile-agency",
   "version": "1.0.0",
-  "description": "MERN Stack Recruitment Platform",
-  "scripts": {
+  "description": "MERN Stack Recruitment Platform",  "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
