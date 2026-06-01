@@ -147,13 +147,18 @@ const [chatUsers, setChatUsers] = useState([]);
 
   const loadData = async () => {
     try {
-      const [statsRes, usersRes, jobsRes, paymentsRes, appsRes, approvalsRes, paySettingsRes] = await Promise.all([
+      const results = await Promise.allSettled([
         adminApi.getDashboard(), adminApi.getUsers(), adminApi.getJobs(),
         adminApi.getPayments(), adminApi.getApplications(), adminApi.getPendingApprovals(), adminApi.getPaymentSettings()
       ]);
-      setStats(statsRes.data); setUsers(usersRes.data); setJobs(jobsRes.data);
-      setPayments(paymentsRes.data); setApplications(appsRes.data); setPendingApprovals(approvalsRes.data);
-      setPaymentSettings(paySettingsRes.data);
+      if (results[0].status === 'fulfilled') setStats(results[0].value.data);
+      if (results[1].status === 'fulfilled') setUsers(results[1].value.data);
+      if (results[2].status === 'fulfilled') setJobs(results[2].value.data);
+      if (results[3].status === 'fulfilled') setPayments(results[3].value.data);
+      if (results[4].status === 'fulfilled') setApplications(results[4].value.data);
+      if (results[5].status === 'fulfilled') setPendingApprovals(results[5].value.data);
+      if (results[6].status === 'fulfilled') setPaymentSettings(results[6].value.data);
+      results.forEach((r, i) => { if (r.status === 'rejected') console.error('loadData failed for index', i, r.reason); });
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -367,7 +372,7 @@ const [chatUsers, setChatUsers] = useState([]);
       await adminApi.createJob(payload);
       setShowAddJobModal(false);
       setJobFormData({ title: '', description: '', skills: '', jobType: 'full-time', salaryNegotiable: false, salaryMin: '', salaryMax: '', benefits: '', applicationDeadline: '', status: 'active', gender: 'both', educationLevel: 'Not required', educationLevelOther: '', country: 'Ethiopia', state: '', city: '', kebele: '', experience: '0 years', language: [], languageOther: '', companyName: '' });
-      setCustomJobTitle(''); loadData(); alert('Job created successfully');
+      setCustomJobTitle(''); await loadData(); alert('Job created successfully');
     } catch (err) { alert(err.response?.data?.message || 'Failed to create job'); }
   };
   const handleOpenEditJobModal = (job) => {

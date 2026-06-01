@@ -4,6 +4,7 @@ const jobSchema = new mongoose.Schema({
   recruiterId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecruiterProfile', required: true },
   title: { type: String, required: true },
   description: { type: String, required: true },
+  skills: [{ type: String }],
   techStack: [{ type: String }],
   location: { type: String, default: '' },
   city: { type: String, default: '' },
