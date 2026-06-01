@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 const sendOtpEmail = async (email, otp) => {
   const mailOptions = {
-    from: process.env.EMAIL_FROM || 'noreply@nileagency.com',
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
     subject: 'Your OTP Code - Nile Agency',
     html: `

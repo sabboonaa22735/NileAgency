@@ -12,7 +12,7 @@ export default function ConfirmEmail() {
   const [resendTimer, setResendTimer] = useState(60);
   const navigate = useNavigate();
   const location = useLocation();
-  const email = location.state?.email || '';
+  const email = location.state?.email || localStorage.getItem('pendingEmail') || '';
 
   const handleChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -70,6 +70,7 @@ export default function ConfirmEmail() {
         localStorage.setItem('user', JSON.stringify(data.user));
       }
       
+      localStorage.removeItem('pendingEmail');
       navigate('/role-selection', { state: { email } });
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid or expired code');

@@ -224,7 +224,7 @@ const AppRoutes = () => {
   
 return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <Landing />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <Register />} />
       <Route path="/confirm-email" element={user ? <Navigate to={getAuthenticatedHome(user)} replace /> : <ConfirmEmail />} />

@@ -91,6 +91,7 @@ export default function Register() {
     
     try {
       await authApi.register({ fullName: name, email, password });
+      localStorage.setItem('pendingEmail', email);
       navigate('/confirm-email', { state: { email } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again later.');

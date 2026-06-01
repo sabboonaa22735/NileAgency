@@ -49,8 +49,33 @@ router.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     const existingUser = await User.findOne({ email });
+    
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      if (existingUser.isVerified) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+      
+      const otp = generateOtp();
+      existingUser.otp = otp;
+      existingUser.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      if (password) existingUser.password = password;
+      await existingUser.save();
+      
+      const emailSent = await sendOtpEmail(email, otp);
+      if (!emailSent) {
+        return res.status(500).json({ message: 'Failed to send OTP email. Please check your email address or try again later.' });
+      }
+
+      const token = jwt.sign({ userId: existingUser._id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(200).json({ token, user: {
+        id: existingUser._id, 
+        email: existingUser.email, 
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        profileImage: existingUser.profileImage,
+        role: existingUser.role, 
+        registrationStatus: existingUser.registrationStatus 
+      }});
     }
     
     const otp = generateOtp();
@@ -59,10 +84,14 @@ router.post('/register', async (req, res) => {
     const user = new User({ email, password, otp, otpExpires });
     await user.save();
     
-    await sendOtpEmail(email, otp);
-    
+    const emailSent = await sendOtpEmail(email, otp);
+    if (!emailSent) {
+      await User.deleteOne({ _id: user._id });
+      return res.status(500).json({ message: 'Failed to send OTP email. Please check your email address or try again later.' });
+    }
+
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { 
+    res.status(201).json({ token, user: {
       id: user._id, 
       email: user.email, 
       firstName: user.firstName,
@@ -112,11 +141,11 @@ router.post('/verify-otp', async (req, res) => {
     }
     
     if (!user.otp || user.otp !== otp) {
-      return res.status(400).json({ message: 'Invalid OTP' });
+      return res.status(400).json({ message: 'Invalid OTP. Check the latest code sent to your email.' });
     }
     
     if (!user.otpExpires || user.otpExpires < new Date()) {
-      return res.status(400).json({ message: 'OTP expired' });
+      return res.status(400).json({ message: 'OTP expired. Request a new code.' });
     }
     
     user.isVerified = true;
@@ -146,8 +175,11 @@ router.post('/resend-otp', async (req, res) => {
     user.otpExpires = otpExpires;
     await user.save();
     
-    await sendOtpEmail(email, otp);
-    
+    const emailSent = await sendOtpEmail(email, otp);
+    if (!emailSent) {
+      return res.status(500).json({ message: 'Failed to send OTP email. Please try again.' });
+    }
+
     res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
