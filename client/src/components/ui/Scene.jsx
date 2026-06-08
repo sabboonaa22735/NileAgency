@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import { motion, useSpring, useMotionValue, useMotionTemplate } from 'framer-motion';
 import FloatingShapes from './FloatingShapes';
+import ErrorBoundary from './ErrorBoundary';
 
 export function Scene({ children, className = '', contentClassName = '' }) {
   return (
@@ -22,7 +23,9 @@ export function Scene({ children, className = '', contentClassName = '' }) {
       </div>
 
       <div className="canvas-container pointer-events-none">
-        <CanvasContainer />
+        <ErrorBoundary>
+          <CanvasContainer />
+        </ErrorBoundary>
       </div>
 
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#07111f] z-[1]" />

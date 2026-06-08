@@ -10,6 +10,7 @@ import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 import ChatBot from '../components/landing/ChatBot';
 import { useTheme } from '../context/ThemeContext';
+import ErrorBoundary from '../components/ui/ErrorBoundary';
 
 export default function Landing() {
   const { theme } = useTheme();
@@ -17,7 +18,9 @@ export default function Landing() {
 
   return (
     <div className={`min-h-screen relative transition-colors duration-500 ${isDark ? 'bg-[#0a0a0f]' : 'bg-slate-50'}`}>
-      <AnimatedBackground isDark={isDark} />
+      <ErrorBoundary>
+        <AnimatedBackground isDark={isDark} />
+      </ErrorBoundary>
       
       <Navbar />
       
